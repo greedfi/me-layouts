@@ -3,7 +3,7 @@ import { useGrokTheme, Image, useEffect, useRef, type CSSProperties } from "grok
 /**
  * Pinned .me pack. Replace the constants and the bots/links arrays.
  * Leave the JSX alone. See README.md.
- * Tall vertical book-spine Install strips on a wood ledge; links hang as ribbons under.
+ * Vertical book-spine Install blocks on a wood ledge; links hang as ribbons under.
  */
 
 const AVATAR = "__AVATAR_DATA_URI__";
@@ -50,6 +50,16 @@ export const LAYOUT = "shelf" as const;
 
 /** Serif stack for still-matching name, spine titles, and pack wordmark. */
 const SERIF = 'Georgia, "Times New Roman", Times, serif';
+
+/** Leather / wood face washes per spine index (hex only inside SpineWash). */
+const SPINE_TONES: readonly { dark: readonly [string, string, string]; light: readonly [string, string, string] }[] = [
+  { dark: ["#6e4528", "#4a2e1a", "#2e1a10"], light: ["#c4a078", "#a88258", "#8a6840"] },
+  { dark: ["#5c2a2e", "#3d1a1e", "#241014"], light: ["#b88880", "#9a6860", "#7a4848"] },
+  { dark: ["#3e3428", "#2a2218", "#1a1510"], light: ["#b8a888", "#988868", "#786848"] },
+  { dark: ["#4a3820", "#322414", "#1e160c"], light: ["#c8ae78", "#a88e58", "#887038"] },
+  { dark: ["#4a2838", "#321820", "#1e1014"], light: ["#b89098", "#987078", "#785058"] },
+  { dark: ["#2e3828", "#1e2618", "#121810"], light: ["#98a888", "#788868", "#586848"] },
+];
 
 function atHandle(raw: string): string {
   const trimmed = raw.trim();
@@ -194,26 +204,205 @@ function ShelfWash(): JSX.Element {
   );
 }
 
-function Spine({ bot }: { bot: Bot }): JSX.Element {
+/** Book-cover face: warm leather / wood grain, tone by index. Hex only here. */
+function SpineWash({ index }: { index: number }): JSX.Element {
+  const theme = useGrokTheme();
+  const ref = useRef<HTMLCanvasElement | null>(null);
+  const kind = theme.kind;
+  const tone = SPINE_TONES[index % SPINE_TONES.length];
+
+  useEffect(() => {
+    const canvas = ref.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+
+    const paint = (): void => {
+      const parent = canvas.parentElement;
+      const width = parent?.clientWidth ?? 0;
+      const height = parent?.clientHeight ?? 0;
+      if (width === 0 || height === 0) return;
+      const ratio = Math.min(window.devicePixelRatio || 1, 2);
+      canvas.width = Math.floor(width * ratio);
+      canvas.height = Math.floor(height * ratio);
+      ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
+      ctx.clearRect(0, 0, width, height);
+
+      const stops = kind === "dark" ? tone.dark : tone.light;
+      const base = ctx.createLinearGradient(0, 0, width, height * 0.15);
+      base.addColorStop(0, stops[0]);
+      base.addColorStop(0.55, stops[1]);
+      base.addColorStop(1, stops[2]);
+      ctx.fillStyle = base;
+      ctx.fillRect(0, 0, width, height);
+
+      for (let i = 0; i < Math.ceil(width / 2); i += 1) {
+        const x = i * 2 + (i % 3) * 0.3;
+        const alpha = kind === "dark" ? 0.04 + (i % 5) * 0.012 : 0.05 + (i % 5) * 0.01;
+        ctx.fillStyle = `rgba(20, 10, 6, ${alpha})`;
+        ctx.fillRect(x, 0, 1, height);
+      }
+
+      const topHi = ctx.createLinearGradient(0, 0, 0, 18);
+      topHi.addColorStop(0, kind === "dark" ? "rgba(255,220,180,0.18)" : "rgba(255,255,240,0.35)");
+      topHi.addColorStop(1, "rgba(0,0,0,0)");
+      ctx.fillStyle = topHi;
+      ctx.fillRect(0, 0, width, 18);
+
+      const leftHi = ctx.createLinearGradient(0, 0, 6, 0);
+      leftHi.addColorStop(0, kind === "dark" ? "rgba(255,210,160,0.14)" : "rgba(255,255,240,0.28)");
+      leftHi.addColorStop(1, "rgba(0,0,0,0)");
+      ctx.fillStyle = leftHi;
+      ctx.fillRect(0, 0, 6, height);
+
+      const bottomShade = ctx.createLinearGradient(0, height - 28, 0, height);
+      bottomShade.addColorStop(0, "rgba(0,0,0,0)");
+      bottomShade.addColorStop(1, kind === "dark" ? "rgba(0,0,0,0.35)" : "rgba(40,20,10,0.22)");
+      ctx.fillStyle = bottomShade;
+      ctx.fillRect(0, height - 28, width, 28);
+
+      // Lighter page-edge strip on the right — thickness cue
+      const edgeW = Math.max(3, Math.round(width * 0.06));
+      const edge = ctx.createLinearGradient(width - edgeW, 0, width, 0);
+      edge.addColorStop(0, kind === "dark" ? "rgba(210,180,140,0.22)" : "rgba(255,245,220,0.55)");
+      edge.addColorStop(0.45, kind === "dark" ? "rgba(190,160,120,0.45)" : "rgba(245,230,200,0.85)");
+      edge.addColorStop(1, kind === "dark" ? "rgba(160,130,95,0.55)" : "rgba(230,210,175,0.95)");
+      ctx.fillStyle = edge;
+      ctx.fillRect(width - edgeW, 0, edgeW, height);
+      ctx.fillStyle = kind === "dark" ? "rgba(0,0,0,0.25)" : "rgba(80,50,30,0.18)";
+      ctx.fillRect(width - edgeW, 0, 1, height);
+    };
+
+    paint();
+    const parent = canvas.parentElement;
+    if (!parent) return;
+    const observer = new ResizeObserver((): void => {
+      paint();
+    });
+    observer.observe(parent);
+    return (): void => {
+      observer.disconnect();
+    };
+  }, [kind, tone]);
+
+  return (
+    <canvas
+      ref={ref}
+      role="presentation"
+      style={{
+        position: "absolute",
+        inset: 0,
+        width: "100%",
+        height: "100%",
+        pointerEvents: "none",
+      }}
+    />
+  );
+}
+
+/** Shelf plank face. Hex only inside this 2D paint. */
+function LedgeWash(): JSX.Element {
+  const theme = useGrokTheme();
+  const ref = useRef<HTMLCanvasElement | null>(null);
+  const kind = theme.kind;
+
+  useEffect(() => {
+    const canvas = ref.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+
+    const paint = (): void => {
+      const parent = canvas.parentElement;
+      const width = parent?.clientWidth ?? 0;
+      const height = parent?.clientHeight ?? 0;
+      if (width === 0 || height === 0) return;
+      const ratio = Math.min(window.devicePixelRatio || 1, 2);
+      canvas.width = Math.floor(width * ratio);
+      canvas.height = Math.floor(height * ratio);
+      ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
+      ctx.clearRect(0, 0, width, height);
+
+      if (kind === "dark") {
+        const base = ctx.createLinearGradient(0, 0, 0, height);
+        base.addColorStop(0, "#5a3a24");
+        base.addColorStop(0.35, "#3e2818");
+        base.addColorStop(1, "#2a1a10");
+        ctx.fillStyle = base;
+        ctx.fillRect(0, 0, width, height);
+        for (let i = 0; i < Math.ceil(width / 5); i += 1) {
+          ctx.fillStyle = `rgba(12, 6, 2, ${0.06 + (i % 4) * 0.02})`;
+          ctx.fillRect(i * 5, 0, 1 + (i % 2), height);
+        }
+        const top = ctx.createLinearGradient(0, 0, 0, 8);
+        top.addColorStop(0, "rgba(200,150,100,0.28)");
+        top.addColorStop(1, "rgba(0,0,0,0)");
+        ctx.fillStyle = top;
+        ctx.fillRect(0, 0, width, 8);
+      } else {
+        const base = ctx.createLinearGradient(0, 0, 0, height);
+        base.addColorStop(0, "#d4b898");
+        base.addColorStop(0.4, "#b89068");
+        base.addColorStop(1, "#987048");
+        ctx.fillStyle = base;
+        ctx.fillRect(0, 0, width, height);
+        for (let i = 0; i < Math.ceil(width / 5); i += 1) {
+          ctx.fillStyle = `rgba(60, 35, 15, ${0.05 + (i % 4) * 0.015})`;
+          ctx.fillRect(i * 5, 0, 1, height);
+        }
+      }
+    };
+
+    paint();
+    const parent = canvas.parentElement;
+    if (!parent) return;
+    const observer = new ResizeObserver((): void => {
+      paint();
+    });
+    observer.observe(parent);
+    return (): void => {
+      observer.disconnect();
+    };
+  }, [kind]);
+
+  return (
+    <canvas
+      ref={ref}
+      role="presentation"
+      style={{
+        position: "absolute",
+        inset: 0,
+        width: "100%",
+        height: "100%",
+        pointerEvents: "none",
+      }}
+    />
+  );
+}
+
+function Spine({ bot, index }: { bot: Bot; index: number }): JSX.Element {
   const theme = useGrokTheme();
   const spine: CSSProperties = {
+    position: "relative",
     display: "flex",
     flexDirection: "column",
     alignItems: "center",
     justifyContent: "space-between",
     gap: 10,
-    flex: "1 1 64px",
+    flex: "0 1 72px",
+    width: 72,
     minWidth: 64,
-    maxWidth: 100,
-    minHeight: 260,
+    maxWidth: 84,
+    minHeight: 280,
     boxSizing: "border-box",
-    padding: "12px 8px",
-    borderRadius: "8px 8px 4px 4px",
+    padding: "14px 6px 10px",
+    borderRadius: 5,
     border: `1px solid ${theme.border.strong}`,
     background: theme.bg.elevated,
-    boxShadow: `0 8px 16px ${theme.border.subtle}`,
+    boxShadow: `2px 10px 18px ${theme.border.subtle}, 0 2px 0 ${theme.border.default}`,
     textDecoration: "none",
     color: theme.text.primary,
+    overflow: "hidden",
   };
   const install: CSSProperties = {
     ...theme.font.caption,
@@ -227,26 +416,31 @@ function Spine({ bot }: { bot: Bot }): JSX.Element {
     minHeight: 56,
     boxSizing: "border-box",
     padding: "8px 4px",
-    borderRadius: 8,
+    borderRadius: 6,
     border: `1px solid ${theme.border.strong}`,
     background: theme.bg.base,
     color: theme.text.primary,
     fontWeight: theme.weight.medium,
+    position: "relative",
+    zIndex: 1,
   };
   return (
     <a href={bot.href} target="_blank" rel="noreferrer" style={spine}>
+      <SpineWash index={index} />
       <div
         style={{
-          width: 40,
-          height: 40,
-          flex: "0 0 40px",
-          borderRadius: 10,
+          width: 36,
+          height: 36,
+          flex: "0 0 36px",
+          borderRadius: 8,
           overflow: "hidden",
           border: `1px solid ${theme.border.default}`,
           background: theme.fill.secondary,
+          position: "relative",
+          zIndex: 1,
         }}
       >
-        <Image src={bot.src} alt={`${bot.name} icon`} width={40} height={40} fit="cover" />
+        <Image src={bot.src} alt={`${bot.name} icon`} width={36} height={36} fit="cover" />
       </div>
       <div
         style={{
@@ -256,7 +450,10 @@ function Spine({ bot }: { bot: Bot }): JSX.Element {
           justifyContent: "center",
           width: "100%",
           minWidth: 0,
-          minHeight: 110,
+          minHeight: 120,
+          position: "relative",
+          zIndex: 1,
+          paddingRight: 2,
         }}
       >
         <p
@@ -269,7 +466,7 @@ function Spine({ bot }: { bot: Bot }): JSX.Element {
             transform: "rotate(180deg)",
             letterSpacing: "0.06em",
             overflowWrap: "anywhere",
-            maxHeight: 170,
+            maxHeight: 180,
             textAlign: "center",
             color: theme.text.primary,
           }}
@@ -333,31 +530,40 @@ function Ledge({ showLinksLabel }: { showLinksLabel: boolean }): JSX.Element {
   const theme = useGrokTheme();
   return (
     <div style={{ width: "100%", minWidth: 0, position: "relative", zIndex: 1 }}>
+      {/* Top shelf surface (plank thickness cue) */}
       <div
         style={{
-          height: 10,
-          borderRadius: "4px 4px 0 0",
-          background: theme.fill.secondary,
-          border: `1px solid ${theme.border.default}`,
+          position: "relative",
+          height: 12,
+          borderRadius: "3px 3px 0 0",
+          overflow: "hidden",
+          border: `1px solid ${theme.border.strong}`,
           borderBottom: "none",
+          background: theme.fill.secondary,
         }}
-      />
+      >
+        <LedgeWash />
+      </div>
+      {/* Front face of the plank */}
       <div
         style={{
+          position: "relative",
           display: "flex",
           alignItems: "center",
           justifyContent: "flex-start",
           gap: 8,
-          minHeight: 28,
-          padding: "6px 14px",
+          minHeight: 32,
+          padding: "8px 14px",
           boxSizing: "border-box",
-          borderRadius: "0 0 6px 6px",
+          borderRadius: "0 0 4px 4px",
+          overflow: "hidden",
           background: theme.bg.elevated,
-          boxShadow: `0 12px 20px ${theme.border.subtle}`,
+          boxShadow: `0 14px 22px ${theme.border.subtle}`,
           border: `1px solid ${theme.border.strong}`,
           borderTop: "none",
         }}
       >
+        <LedgeWash />
         {showLinksLabel ? (
           <>
             <span
@@ -368,6 +574,8 @@ function Ledge({ showLinksLabel }: { showLinksLabel: boolean }): JSX.Element {
                 textTransform: "uppercase",
                 fontWeight: theme.weight.semibold,
                 color: theme.text.primary,
+                position: "relative",
+                zIndex: 1,
               }}
             >
               Links
@@ -379,6 +587,8 @@ function Ledge({ showLinksLabel }: { showLinksLabel: boolean }): JSX.Element {
                 borderRadius: theme.radius.full,
                 background: theme.text.accent,
                 flexShrink: 0,
+                position: "relative",
+                zIndex: 1,
               }}
             />
           </>
@@ -499,10 +709,10 @@ export default function App(): JSX.Element {
                 style={{
                   display: "flex",
                   flexWrap: "wrap",
-                  gap: 10,
+                  gap: 8,
                   width: "100%",
                   minWidth: 0,
-                  alignItems: "stretch",
+                  alignItems: "flex-end",
                   justifyContent: "center",
                   paddingBottom: 0,
                   marginBottom: -2,
@@ -511,7 +721,7 @@ export default function App(): JSX.Element {
                 }}
               >
                 {bots.map((bot, index) => (
-                  <Spine key={`${bot.href}-${index}`} bot={bot} />
+                  <Spine key={`${bot.href}-${index}`} bot={bot} index={index} />
                 ))}
               </div>
             ) : null}
