@@ -20,10 +20,9 @@ Stills are human reference for the intended look. The bot does not fetch them at
 | Orbit | `layouts/orbit/page.canvas.tsx` | `stills/orbit.jpg` |
 | Broadsheet | `layouts/broadsheet/page.canvas.tsx` | `stills/broadsheet.jpg` |
 | Shelf | `layouts/shelf/page.canvas.tsx` | `stills/shelf.jpg` |
-| Departures | `layouts/departures/page.canvas.tsx` | `stills/departures.jpg` |
 | Polaroid | `layouts/polaroid/page.canvas.tsx` | `stills/polaroid.jpg` |
 
-Each file default-exports `App` and exports `const LAYOUT` matching the folder name (`"stack"`, `"billboard"`, `"magazine"`, `"terminal"`, `"bento"`, `"orbit"`, `"broadsheet"`, `"shelf"`, `"departures"`, or `"polaroid"`).
+Each file default-exports `App` and exports `const LAYOUT` matching the folder name (`"stack"`, `"billboard"`, `"magazine"`, `"terminal"`, `"bento"`, `"orbit"`, `"broadsheet"`, `"shelf"`, or `"polaroid"`).
 
 ## Fill procedure
 
@@ -72,7 +71,6 @@ How packs use the array:
 - **Orbit** — avatar center; bots as ring satellites; links outer quiet chips.
 - **Broadsheet** — masthead name; bots[0] above fold; rest compact.
 - **Shelf** — vertical spine strips for bots; bookmark link rows.
-- **Departures** — board rows TIME|BOT|GATE|STATUS (use index/name/Install/desc creatively with theme tokens).
 - **Polaroid** — stacked/tilted cards for bots; caption Install; links below.
 
 ### Link object
@@ -107,7 +105,6 @@ Templates normalize at render: a missing `@` is added, an existing `@` is kept. 
 - **Orbit** — avatar at the center of a ring, bots as Install satellites around the ring, name/handle/bio below, quiet link chips outer, footer.
 - **Broadsheet** — newspaper masthead with name as the title, bio between rules, bots[0] as the above-the-fold Install hero, later bots compact, Classifieds link list, footer.
 - **Shelf** — header with avatar/name/bio, tall vertical book-spine Install strips for each bot, bookmark-style link rows under a shelf ledge, footer.
-- **Departures** — airport board chrome (mono), header plus DEPARTURES title, columns TIME | BOT | GATE(Install) | STATUS from the bots array, quiet footnote links, `#` footer.
 - **Polaroid** — centered avatar/name/bio, stacked tilted polaroid cards for bots (featured top = bots[0]) with Install on the caption strip, Quiet Links below, footer.
 
 ## Hard rules
