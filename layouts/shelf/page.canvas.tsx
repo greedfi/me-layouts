@@ -233,15 +233,19 @@ function Spine({ bot, index = 0 }: { bot: Bot; index?: number }): JSX.Element {
             fontSize: 17,
             fontWeight: theme.weight.semibold,
             writingMode: "vertical-rl",
-            letterSpacing: "0.06em",
+            letterSpacing: "0.02em",
             overflowWrap: "anywhere",
             maxHeight: 210,
             textAlign: "center",
-            color: theme.text.primary,
+            color: theme.text.secondary,
+            opacity: 0.88,
+            textShadow: `0 1px 0 ${theme.border.subtle}, 0 -1px 0 ${theme.border.strong}`,
           }}
         >
           {base.length > 0 ? <span>{base}</span> : null}
-          {suffix.length > 0 ? <span style={{ color: accent }}>{suffix}</span> : null}
+          {suffix.length > 0 ? (
+            <span style={{ color: accent, opacity: 0.92 }}>{suffix}</span>
+          ) : null}
         </p>
       </div>
       <span style={install}>
