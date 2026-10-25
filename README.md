@@ -2,7 +2,7 @@
 
 Pinned Grok Bot canvas templates for the `.me` link-tree bot.
 
-When a new owner picks a pack in setup, the bot **fetches that file from this repo** and fills owner fields. It does **not** invent layout chrome for these four packs.
+When a new owner picks a pack in setup, the bot **fetches that file from this repo** and fills owner fields. It does **not** invent layout chrome for these packs.
 
 Custom / "describe your own" is **not** in this repo. The bot invents a layout only for that case.
 
@@ -16,8 +16,14 @@ Stills are human reference for the intended look. The bot does not fetch them at
 | Billboard | `layouts/billboard/page.canvas.tsx` | `stills/billboard.jpg` |
 | Magazine | `layouts/magazine/page.canvas.tsx` | `stills/magazine.jpg` |
 | Terminal | `layouts/terminal/page.canvas.tsx` | `stills/terminal.jpg` |
+| Bento | `layouts/bento/page.canvas.tsx` | `stills/bento.jpg` |
+| Orbit | `layouts/orbit/page.canvas.tsx` | `stills/orbit.jpg` |
+| Broadsheet | `layouts/broadsheet/page.canvas.tsx` | `stills/broadsheet.jpg` |
+| Shelf | `layouts/shelf/page.canvas.tsx` | `stills/shelf.jpg` |
+| Departures | `layouts/departures/page.canvas.tsx` | `stills/departures.jpg` |
+| Polaroid | `layouts/polaroid/page.canvas.tsx` | `stills/polaroid.jpg` |
 
-Each file default-exports `App` and exports `const LAYOUT` as `"stack"`, `"billboard"`, `"magazine"`, or `"terminal"`, matching the folder.
+Each file default-exports `App` and exports `const LAYOUT` matching the folder name (`"stack"`, `"billboard"`, `"magazine"`, `"terminal"`, `"bento"`, `"orbit"`, `"broadsheet"`, `"shelf"`, `"departures"`, or `"polaroid"`).
 
 ## Fill procedure
 
@@ -62,6 +68,12 @@ How packs use the array:
 
 - **Stack** and **Billboard** and **Terminal** render every bot the same way, in order.
 - **Magazine** renders `bots[0]` as the featured hero (88px icon) and `bots.slice(1)` as compact rows (48px icon). One bot means a hero and no compact rows. Zero bots omits the block.
+- **Bento** — bots[0] featured large; rest as compact mosaic chips.
+- **Orbit** — avatar center; bots as ring satellites; links outer quiet chips.
+- **Broadsheet** — masthead name; bots[0] above fold; rest compact.
+- **Shelf** — vertical spine strips for bots; bookmark link rows.
+- **Departures** — board rows TIME|BOT|GATE|STATUS (use index/name/Install/desc creatively with theme tokens).
+- **Polaroid** — stacked/tilted cards for bots; caption Install; links below.
 
 ### Link object
 
@@ -91,6 +103,12 @@ Templates normalize at render: a missing `@` is added, an existing `@` is kept. 
 - **Billboard** — small avatar, oversized display name, full-width loud Install tiles, a short link row, footer.
 - **Magazine** — left editorial header, first bot as the featured Install hero, later bots as compact rows, Links, footer.
 - **Terminal** — monospace page (`theme.font.mono` + `theme.font.code`), `#` comment bio, dense `[install]` rows, minimal chrome.
+- **Bento** — asymmetric mosaic: avatar/name in one cell, bio in another, bots[0] as a large featured Install tile, later bots as compact chips, links as thin bars in a mosaic cell, footer.
+- **Orbit** — avatar at the center of a ring, bots as Install satellites around the ring, name/handle/bio below, quiet link chips outer, footer.
+- **Broadsheet** — newspaper masthead with name as the title, bio between rules, bots[0] as the above-the-fold Install hero, later bots compact, Classifieds link list, footer.
+- **Shelf** — header with avatar/name/bio, tall vertical book-spine Install strips for each bot, bookmark-style link rows under a shelf ledge, footer.
+- **Departures** — airport board chrome (mono), header plus DEPARTURES title, columns TIME | BOT | GATE(Install) | STATUS from the bots array, quiet footnote links, `#` footer.
+- **Polaroid** — centered avatar/name/bio, stacked tilted polaroid cards for bots (featured top = bots[0]) with Install on the caption strip, Quiet Links below, footer.
 
 ## Hard rules
 
