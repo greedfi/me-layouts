@@ -1,2 +1,104 @@
-# me-layouts
-.me layout packs: pinned Stack/Billboard/Magazine/Terminal canvases for the .me Grok Bot
+# .me layout packs
+
+Pinned Grok Bot canvas templates for the `.me` link-tree bot.
+
+When a new owner picks a pack in setup, the bot **fetches that file from this repo** and fills owner fields. It does **not** invent layout chrome for these four packs.
+
+Custom / "describe your own" is **not** in this repo. The bot invents a layout only for that case.
+
+Stills are human reference for the intended look. The bot does not fetch them at fill time. Device chrome or a theme control in a capture is the host, not the pack. Do not add either to the file.
+
+## Layout → path
+
+| Pack | Path | Still |
+|------|------|-------|
+| Stack | `layouts/stack/page.canvas.tsx` | `stills/stack.jpg` |
+| Billboard | `layouts/billboard/page.canvas.tsx` | `stills/billboard.jpg` |
+| Magazine | `layouts/magazine/page.canvas.tsx` | `stills/magazine.jpg` |
+| Terminal | `layouts/terminal/page.canvas.tsx` | `stills/terminal.jpg` |
+
+Each file default-exports `App` and exports `const LAYOUT` as `"stack"`, `"billboard"`, `"magazine"`, or `"terminal"`, matching the folder.
+
+## Fill procedure
+
+1. Fetch `layouts/<pack>/page.canvas.tsx` and keep its JSX.
+2. Confirm `LAYOUT` matches the pack the owner picked.
+3. Replace these string initializers (they appear once each):
+
+| Constant | Token | After fill |
+|----------|--------|------------|
+| `AVATAR` | `__AVATAR_DATA_URI__` | `data:image/...` URI |
+| `DISPLAY_NAME` | `__DISPLAY_NAME__` | Owner display name |
+| `HANDLE` | `__HANDLE__` | Handle, with or without `@` |
+| `BIO` | `__BIO__` | Short bio. Newlines are kept (Terminal renders one `#` line per line) |
+| `FOOTER` | `__FOOTER__` | Footer line |
+
+4. Replace the whole `bots` array. One object per bot, same keys, 0–N entries. The file ships a single example object so the shape is obvious.
+5. Replace the whole `links` array the same way.
+
+Do not leave the example placeholders in a filled page. Do not add a second source of bots (no `__BOTS_JSON__` string). The arrays are the structured form.
+
+### Bot object
+
+```ts
+{
+  name: "__BOT0_NAME__",
+  desc: "__BOT0_DESC__",
+  src: "__BOT0_ICON__",
+  href: "__BOT0_HREF__",
+}
+```
+
+| Field | Placeholder the example uses | After fill |
+|-------|------------------------------|------------|
+| `name` | `__BOTn_NAME__` | Bot title |
+| `desc` | `__BOTn_DESC__` | One short line |
+| `src` | `__BOTn_ICON__` | `data:image/...` icon |
+| `href` | `__BOTn_HREF__` | Real `https://x.ai/bot/...` install URL |
+
+`n` is the zero-based index (`__BOT0_*__`, `__BOT1_*__`, …). Adding or removing objects is the way to change the count. Do not clone JSX per bot.
+
+How packs use the array:
+
+- **Stack** and **Billboard** and **Terminal** render every bot the same way, in order.
+- **Magazine** renders `bots[0]` as the featured hero (88px icon) and `bots.slice(1)` as compact rows (48px icon). One bot means a hero and no compact rows. Zero bots omits the block.
+
+### Link object
+
+```ts
+{
+  label: "__LINK0_LABEL__",
+  href: "__LINK0_HREF__",
+  display: "__LINK0_DISPLAY__",
+}
+```
+
+| Field | Placeholder | After fill |
+|-------|-------------|------------|
+| `label` | `__LINKn_LABEL__` | Short name, e.g. `X` |
+| `href` | `__LINKn_HREF__` | Real URL |
+| `display` | `__LINKn_DISPLAY__` | Secondary text, e.g. a handle or domain. May match `label` |
+
+**Stack** and **Magazine** map the array (0–N). Zero links omits the links block. Billboard and Terminal also map the array; they just render it as a short row list instead of a titled section with rules.
+
+### Handle
+
+Templates normalize at render: a missing `@` is added, an existing `@` is kept. Pass either `owner` or `@owner`.
+
+## What each pack is
+
+- **Stack** — centered header (avatar, name, handle, bio), equal bot cards (64px icon, Install pill), Quiet Links, footer. A subtle `BrandWash` canvas sits behind the column. That paint function is the only place hex is allowed.
+- **Billboard** — small avatar, oversized display name, full-width loud Install tiles, a short link row, footer.
+- **Magazine** — left editorial header, first bot as the featured Install hero, later bots as compact rows, Links, footer.
+- **Terminal** — monospace page (`theme.font.mono` + `theme.font.code`), `#` comment bio, dense `[install]` rows, minimal chrome.
+
+## Hard rules
+
+- Import only from `grok/canvas`.
+- No on-page theme switcher (`Segmented` or otherwise).
+- No Duo frame and no phone chrome (no status bar, no home indicator, no device bezel).
+- No `fetch`, no network, no remote image URLs. Avatars and icons are `data:image/...` after fill. Until fill, the placeholders are not fetched.
+- Mobile-first: width 100%, max width 440–520 centered, `env(safe-area-inset-*)` padding, touch targets at least 44px, no horizontal overflow at 320px. Text wrappers use `minWidth: 0` and `overflowWrap`.
+- Colors come from `useGrokTheme()`. The only hex literals live inside Stack's `BrandWash` 2D canvas. Do not add hex, a theme toggle, or new chrome when filling.
+- Install hrefs must be real `https://x.ai/bot/...` URLs after fill.
+- Leave `export default function App` and `export const LAYOUT` in place.
