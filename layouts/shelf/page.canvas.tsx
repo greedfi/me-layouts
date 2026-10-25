@@ -51,25 +51,6 @@ export const LAYOUT = "shelf" as const;
 /** Serif stack for still-matching name, spine titles, and pack wordmark. */
 const SERIF = 'Georgia, "Times New Roman", Times, serif';
 
-/**
- * Wood chrome for this skeuomorphic pack. Hex lives here and in ShelfWash
- * (same atmosphere exception as Stack's BrandWash).
- */
-const WOOD = {
-  wallDeep: "#1a100c",
-  wallMid: "#2c1a12",
-  wallWarm: "#3d2418",
-  spineTop: "#6b4428",
-  spineMid: "#4a2e1a",
-  spineBot: "#2e1a10",
-  spineEdge: "#1f120a",
-  ledgeTop: "#5a3a24",
-  ledgeFront: "#3a2314",
-  ledgeLip: "#24150c",
-  installBg: "#0e0a08",
-  gold: "#c9a86c",
-} as const;
-
 function atHandle(raw: string): string {
   const trimmed = raw.trim();
   if (trimmed.length === 0) return "";
@@ -116,13 +97,12 @@ function ShelfWash(): JSX.Element {
 
       if (kind === "dark") {
         const base = ctx.createLinearGradient(0, 0, width * 0.15, height);
-        base.addColorStop(0, WOOD.wallWarm);
-        base.addColorStop(0.45, WOOD.wallMid);
-        base.addColorStop(1, WOOD.wallDeep);
+        base.addColorStop(0, "#3d2418");
+        base.addColorStop(0.45, "#2c1a12");
+        base.addColorStop(1, "#1a100c");
         ctx.fillStyle = base;
         ctx.fillRect(0, 0, width, height);
 
-        // Vertical grain streaks
         for (let i = 0; i < Math.ceil(width / 3); i += 1) {
           const x = i * 3 + (i % 5) * 0.4;
           const alpha = 0.03 + (i % 7) * 0.008;
@@ -135,7 +115,6 @@ function ShelfWash(): JSX.Element {
           ctx.fillRect(x, 0, 1, height);
         }
 
-        // Top warm light + edge vignette
         const glow = ctx.createRadialGradient(
           width * 0.5,
           height * 0.08,
@@ -230,9 +209,9 @@ function Spine({ bot }: { bot: Bot }): JSX.Element {
     boxSizing: "border-box",
     padding: "12px 8px",
     borderRadius: "8px 8px 4px 4px",
-    border: `1px solid ${WOOD.spineEdge}`,
-    background: `linear-gradient(180deg, ${WOOD.spineTop} 0%, ${WOOD.spineMid} 48%, ${WOOD.spineBot} 100%)`,
-    boxShadow: `inset 2px 0 0 rgba(255,220,180,0.08), inset -3px 0 6px rgba(0,0,0,0.35), 0 8px 16px rgba(0,0,0,0.45)`,
+    border: `1px solid ${theme.border.strong}`,
+    background: theme.bg.elevated,
+    boxShadow: `0 8px 16px ${theme.border.subtle}`,
     textDecoration: "none",
     color: theme.text.primary,
   };
@@ -249,9 +228,9 @@ function Spine({ bot }: { bot: Bot }): JSX.Element {
     boxSizing: "border-box",
     padding: "8px 4px",
     borderRadius: 8,
-    border: `1px solid rgba(255,255,255,0.12)`,
-    background: WOOD.installBg,
-    color: "#f5f0e8",
+    border: `1px solid ${theme.border.strong}`,
+    background: theme.bg.base,
+    color: theme.text.primary,
     fontWeight: theme.weight.medium,
   };
   return (
@@ -263,8 +242,8 @@ function Spine({ bot }: { bot: Bot }): JSX.Element {
           flex: "0 0 40px",
           borderRadius: 10,
           overflow: "hidden",
-          border: `1px solid rgba(255,255,255,0.14)`,
-          background: "rgba(0,0,0,0.25)",
+          border: `1px solid ${theme.border.default}`,
+          background: theme.fill.secondary,
         }}
       >
         <Image src={bot.src} alt={`${bot.name} icon`} width={40} height={40} fit="cover" />
@@ -292,14 +271,14 @@ function Spine({ bot }: { bot: Bot }): JSX.Element {
             overflowWrap: "anywhere",
             maxHeight: 170,
             textAlign: "center",
-            color: "#f7f1e6",
+            color: theme.text.primary,
           }}
         >
           {bot.name}
         </p>
       </div>
       <span style={install}>
-        <Down color="#f5f0e8" />
+        <Down color={theme.text.primary} />
         Install
       </span>
     </a>
@@ -324,10 +303,10 @@ function Ribbon({ link }: { link: Link }): JSX.Element {
     boxSizing: "border-box",
     padding: "14px 6px 22px",
     background: theme.text.accent,
-    color: theme.kind === "dark" ? "#141018" : "#ffffff",
+    color: theme.bg.base,
     textDecoration: "none",
     clipPath: "polygon(0 0, 100% 0, 100% calc(100% - 14px), 50% 100%, 0 calc(100% - 14px))",
-    boxShadow: "0 10px 18px rgba(0,0,0,0.4)",
+    boxShadow: `0 10px 18px ${theme.border.subtle}`,
     ...theme.font.caption,
     fontFamily: theme.font.family,
     fontWeight: theme.weight.semibold,
@@ -358,8 +337,9 @@ function Ledge({ showLinksLabel }: { showLinksLabel: boolean }): JSX.Element {
         style={{
           height: 10,
           borderRadius: "4px 4px 0 0",
-          background: `linear-gradient(180deg, ${WOOD.ledgeTop} 0%, ${WOOD.ledgeFront} 100%)`,
-          boxShadow: "inset 0 1px 0 rgba(255,220,180,0.18)",
+          background: theme.fill.secondary,
+          border: `1px solid ${theme.border.default}`,
+          borderBottom: "none",
         }}
       />
       <div
@@ -372,9 +352,9 @@ function Ledge({ showLinksLabel }: { showLinksLabel: boolean }): JSX.Element {
           padding: "6px 14px",
           boxSizing: "border-box",
           borderRadius: "0 0 6px 6px",
-          background: `linear-gradient(180deg, ${WOOD.ledgeFront} 0%, ${WOOD.ledgeLip} 100%)`,
-          boxShadow: "0 12px 20px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,200,140,0.08)",
-          border: `1px solid ${WOOD.spineEdge}`,
+          background: theme.bg.elevated,
+          boxShadow: `0 12px 20px ${theme.border.subtle}`,
+          border: `1px solid ${theme.border.strong}`,
           borderTop: "none",
         }}
       >
@@ -387,7 +367,7 @@ function Ledge({ showLinksLabel }: { showLinksLabel: boolean }): JSX.Element {
                 letterSpacing: "0.16em",
                 textTransform: "uppercase",
                 fontWeight: theme.weight.semibold,
-                color: "#f0e6d6",
+                color: theme.text.primary,
               }}
             >
               Links
@@ -412,17 +392,13 @@ export default function App(): JSX.Element {
   const theme = useGrokTheme();
   const handle = atHandle(HANDLE);
   const hasShelf = bots.length > 0 || links.length > 0;
-  const dark = theme.kind === "dark";
-  const ink = dark ? "#f7f1e6" : "#1a100c";
-  const inkMuted = dark ? "rgba(247,241,230,0.78)" : "rgba(26,16,12,0.72)";
-  const inkFaint = dark ? "rgba(247,241,230,0.55)" : "rgba(26,16,12,0.5)";
   const page: CSSProperties = {
     position: "relative",
     width: "100%",
     minHeight: "100%",
     overflowX: "hidden",
-    background: dark ? WOOD.wallDeep : "#d4c0a8",
-    color: ink,
+    background: theme.bg.base,
+    color: theme.text.primary,
     fontFamily: theme.font.family,
     boxSizing: "border-box",
   };
@@ -453,9 +429,8 @@ export default function App(): JSX.Element {
             fontFamily: SERIF,
             fontSize: 18,
             letterSpacing: "0.04em",
-            color: WOOD.gold,
+            color: theme.text.accent,
             textAlign: "center",
-            textShadow: "0 1px 2px rgba(0,0,0,0.45)",
           }}
         >
           Shelf
@@ -469,9 +444,9 @@ export default function App(): JSX.Element {
               flex: "0 0 64px",
               borderRadius: theme.radius.full,
               overflow: "hidden",
-              border: `2px solid ${WOOD.gold}`,
-              background: WOOD.spineBot,
-              boxShadow: "0 4px 12px rgba(0,0,0,0.35)",
+              border: `2px solid ${theme.text.accent}`,
+              background: theme.fill.secondary,
+              boxShadow: `0 4px 12px ${theme.border.subtle}`,
             }}
           >
             <Image src={AVATAR} alt={`${DISPLAY_NAME} avatar`} width={64} height={64} fit="cover" />
@@ -485,7 +460,7 @@ export default function App(): JSX.Element {
                 letterSpacing: "-0.02em",
                 margin: 0,
                 overflowWrap: "anywhere",
-                color: ink,
+                color: theme.text.primary,
               }}
             >
               {DISPLAY_NAME}
@@ -507,7 +482,7 @@ export default function App(): JSX.Element {
               style={{
                 ...theme.font.subtext,
                 fontFamily: theme.font.family,
-                color: inkMuted,
+                color: theme.text.secondary,
                 margin: "6px 0 0",
                 overflowWrap: "anywhere",
               }}
@@ -571,7 +546,7 @@ export default function App(): JSX.Element {
           style={{
             ...theme.font.caption,
             fontFamily: theme.font.family,
-            color: inkFaint,
+            color: theme.text.tertiary,
             margin: 0,
             width: "100%",
             minWidth: 0,
