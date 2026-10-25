@@ -1,9 +1,9 @@
-import { useGrokTheme, Image, type CSSProperties } from "grok/canvas";
+import { useGrokTheme, Image, useEffect, useRef, type CSSProperties } from "grok/canvas";
 
 /**
  * Pinned .me pack. Replace the constants and the bots/links arrays.
  * Leave the JSX alone. See README.md.
- * Tall vertical book-spine Install strips for bots; links as bookmark rows under.
+ * Tall vertical book-spine Install strips on a wood ledge; links hang as ribbons under.
  */
 
 const AVATAR = "__AVATAR_DATA_URI__";
@@ -48,6 +48,28 @@ const links: readonly Link[] = [
 
 export const LAYOUT = "shelf" as const;
 
+/** Serif stack for still-matching name, spine titles, and pack wordmark. */
+const SERIF = 'Georgia, "Times New Roman", Times, serif';
+
+/**
+ * Wood chrome for this skeuomorphic pack. Hex lives here and in ShelfWash
+ * (same atmosphere exception as Stack's BrandWash).
+ */
+const WOOD = {
+  wallDeep: "#1a100c",
+  wallMid: "#2c1a12",
+  wallWarm: "#3d2418",
+  spineTop: "#6b4428",
+  spineMid: "#4a2e1a",
+  spineBot: "#2e1a10",
+  spineEdge: "#1f120a",
+  ledgeTop: "#5a3a24",
+  ledgeFront: "#3a2314",
+  ledgeLip: "#24150c",
+  installBg: "#0e0a08",
+  gold: "#c9a86c",
+} as const;
+
 function atHandle(raw: string): string {
   const trimmed = raw.trim();
   if (trimmed.length === 0) return "";
@@ -69,6 +91,130 @@ function Down({ color }: { color: string }): JSX.Element {
   );
 }
 
+/** Dark wood-grain wall + vignette. Hex only inside this 2D paint (BrandWash pattern). */
+function ShelfWash(): JSX.Element {
+  const theme = useGrokTheme();
+  const ref = useRef<HTMLCanvasElement | null>(null);
+  const kind = theme.kind;
+
+  useEffect(() => {
+    const canvas = ref.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+
+    const paint = (): void => {
+      const parent = canvas.parentElement;
+      const width = parent?.clientWidth ?? 0;
+      const height = parent?.clientHeight ?? 0;
+      if (width === 0 || height === 0) return;
+      const ratio = Math.min(window.devicePixelRatio || 1, 2);
+      canvas.width = Math.floor(width * ratio);
+      canvas.height = Math.floor(height * ratio);
+      ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
+      ctx.clearRect(0, 0, width, height);
+
+      if (kind === "dark") {
+        const base = ctx.createLinearGradient(0, 0, width * 0.15, height);
+        base.addColorStop(0, WOOD.wallWarm);
+        base.addColorStop(0.45, WOOD.wallMid);
+        base.addColorStop(1, WOOD.wallDeep);
+        ctx.fillStyle = base;
+        ctx.fillRect(0, 0, width, height);
+
+        // Vertical grain streaks
+        for (let i = 0; i < Math.ceil(width / 3); i += 1) {
+          const x = i * 3 + (i % 5) * 0.4;
+          const alpha = 0.03 + (i % 7) * 0.008;
+          ctx.fillStyle = `rgba(10, 6, 4, ${alpha})`;
+          ctx.fillRect(x, 0, 1 + (i % 2), height);
+        }
+        for (let i = 0; i < Math.ceil(width / 11); i += 1) {
+          const x = i * 11 + 2;
+          ctx.fillStyle = `rgba(90, 58, 36, ${0.04 + (i % 3) * 0.015})`;
+          ctx.fillRect(x, 0, 1, height);
+        }
+
+        // Top warm light + edge vignette
+        const glow = ctx.createRadialGradient(
+          width * 0.5,
+          height * 0.08,
+          0,
+          width * 0.5,
+          height * 0.18,
+          Math.max(width, height) * 0.7,
+        );
+        glow.addColorStop(0, "rgba(90, 55, 32, 0.55)");
+        glow.addColorStop(0.4, "rgba(40, 24, 14, 0.2)");
+        glow.addColorStop(1, "rgba(0, 0, 0, 0)");
+        ctx.fillStyle = glow;
+        ctx.fillRect(0, 0, width, height);
+
+        const vig = ctx.createRadialGradient(
+          width * 0.5,
+          height * 0.4,
+          Math.min(width, height) * 0.2,
+          width * 0.5,
+          height * 0.5,
+          Math.max(width, height) * 0.75,
+        );
+        vig.addColorStop(0, "rgba(0, 0, 0, 0)");
+        vig.addColorStop(1, "rgba(0, 0, 0, 0.55)");
+        ctx.fillStyle = vig;
+        ctx.fillRect(0, 0, width, height);
+      } else {
+        const base = ctx.createLinearGradient(0, 0, 0, height);
+        base.addColorStop(0, "#e8d9c8");
+        base.addColorStop(0.5, "#d4c0a8");
+        base.addColorStop(1, "#c4a88c");
+        ctx.fillStyle = base;
+        ctx.fillRect(0, 0, width, height);
+        for (let i = 0; i < Math.ceil(width / 4); i += 1) {
+          ctx.fillStyle = `rgba(80, 50, 30, ${0.03 + (i % 5) * 0.01})`;
+          ctx.fillRect(i * 4, 0, 1, height);
+        }
+        const vig = ctx.createRadialGradient(
+          width * 0.5,
+          height * 0.35,
+          Math.min(width, height) * 0.15,
+          width * 0.5,
+          height * 0.5,
+          Math.max(width, height) * 0.7,
+        );
+        vig.addColorStop(0, "rgba(0, 0, 0, 0)");
+        vig.addColorStop(1, "rgba(60, 35, 20, 0.28)");
+        ctx.fillStyle = vig;
+        ctx.fillRect(0, 0, width, height);
+      }
+    };
+
+    paint();
+    const parent = canvas.parentElement;
+    if (!parent) return;
+    const observer = new ResizeObserver((): void => {
+      paint();
+    });
+    observer.observe(parent);
+    return (): void => {
+      observer.disconnect();
+    };
+  }, [kind]);
+
+  return (
+    <canvas
+      ref={ref}
+      role="presentation"
+      style={{
+        position: "absolute",
+        inset: 0,
+        width: "100%",
+        height: "100%",
+        pointerEvents: "none",
+      }}
+    />
+  );
+}
+
 function Spine({ bot }: { bot: Bot }): JSX.Element {
   const theme = useGrokTheme();
   const spine: CSSProperties = {
@@ -76,21 +222,23 @@ function Spine({ bot }: { bot: Bot }): JSX.Element {
     flexDirection: "column",
     alignItems: "center",
     justifyContent: "space-between",
-    gap: 12,
-    flex: "1 1 0",
-    minWidth: 72,
-    maxWidth: 120,
-    minHeight: 280,
+    gap: 10,
+    flex: "1 1 64px",
+    minWidth: 64,
+    maxWidth: 100,
+    minHeight: 260,
     boxSizing: "border-box",
-    padding: "14px 10px",
-    borderRadius: 10,
-    border: `1px solid ${theme.border.default}`,
-    background: theme.bg.elevated,
+    padding: "12px 8px",
+    borderRadius: "8px 8px 4px 4px",
+    border: `1px solid ${WOOD.spineEdge}`,
+    background: `linear-gradient(180deg, ${WOOD.spineTop} 0%, ${WOOD.spineMid} 48%, ${WOOD.spineBot} 100%)`,
+    boxShadow: `inset 2px 0 0 rgba(255,220,180,0.08), inset -3px 0 6px rgba(0,0,0,0.35), 0 8px 16px rgba(0,0,0,0.45)`,
     textDecoration: "none",
     color: theme.text.primary,
   };
   const install: CSSProperties = {
     ...theme.font.caption,
+    fontFamily: theme.font.family,
     display: "inline-flex",
     flexDirection: "column",
     alignItems: "center",
@@ -101,23 +249,25 @@ function Spine({ bot }: { bot: Bot }): JSX.Element {
     boxSizing: "border-box",
     padding: "8px 4px",
     borderRadius: 8,
-    border: `1px solid ${theme.border.strong}`,
+    border: `1px solid rgba(255,255,255,0.12)`,
+    background: WOOD.installBg,
+    color: "#f5f0e8",
     fontWeight: theme.weight.medium,
   };
   return (
     <a href={bot.href} target="_blank" rel="noreferrer" style={spine}>
       <div
         style={{
-          width: 44,
-          height: 44,
-          flex: "0 0 44px",
+          width: 40,
+          height: 40,
+          flex: "0 0 40px",
           borderRadius: 10,
           overflow: "hidden",
-          border: `1px solid ${theme.border.subtle}`,
-          background: theme.fill.secondary,
+          border: `1px solid rgba(255,255,255,0.14)`,
+          background: "rgba(0,0,0,0.25)",
         }}
       >
-        <Image src={bot.src} alt={`${bot.name} icon`} width={44} height={44} fit="cover" />
+        <Image src={bot.src} alt={`${bot.name} icon`} width={40} height={40} fit="cover" />
       </div>
       <div
         style={{
@@ -127,89 +277,160 @@ function Spine({ bot }: { bot: Bot }): JSX.Element {
           justifyContent: "center",
           width: "100%",
           minWidth: 0,
-          minHeight: 120,
+          minHeight: 110,
         }}
       >
         <p
           style={{
             ...theme.font.body1,
+            fontFamily: SERIF,
             fontWeight: theme.weight.semibold,
             margin: 0,
             writingMode: "vertical-rl",
             transform: "rotate(180deg)",
-            letterSpacing: "0.04em",
+            letterSpacing: "0.06em",
             overflowWrap: "anywhere",
-            maxHeight: 180,
+            maxHeight: 170,
             textAlign: "center",
+            color: "#f7f1e6",
           }}
         >
           {bot.name}
         </p>
       </div>
       <span style={install}>
-        <Down color={theme.text.primary} />
+        <Down color="#f5f0e8" />
         Install
       </span>
     </a>
   );
 }
 
-function Bookmark({ link }: { link: Link }): JSX.Element {
+function Ribbon({ link }: { link: Link }): JSX.Element {
   const theme = useGrokTheme();
   const showDisplay = link.display.trim().length > 0 && link.display !== link.label;
-  const row: CSSProperties = {
+  const text = showDisplay ? `${link.label} · ${link.display}` : link.label;
+  const ribbon: CSSProperties = {
     display: "flex",
+    flexDirection: "column",
     alignItems: "center",
-    gap: 10,
-    width: "100%",
-    minWidth: 0,
-    minHeight: 48,
+    justifyContent: "flex-start",
+    gap: 8,
+    flex: "0 1 44px",
+    width: 44,
+    minWidth: 40,
+    maxWidth: 52,
+    minHeight: 132,
     boxSizing: "border-box",
-    padding: "10px 14px",
-    borderRadius: "0 0 12px 12px",
-    border: `1px solid ${theme.border.subtle}`,
-    borderTop: "none",
-    background: theme.fill.secondary,
+    padding: "14px 6px 22px",
+    background: theme.text.accent,
+    color: theme.kind === "dark" ? "#141018" : "#ffffff",
     textDecoration: "none",
-    color: theme.text.primary,
-    ...theme.font.subtext,
+    clipPath: "polygon(0 0, 100% 0, 100% calc(100% - 14px), 50% 100%, 0 calc(100% - 14px))",
+    boxShadow: "0 10px 18px rgba(0,0,0,0.4)",
+    ...theme.font.caption,
+    fontFamily: theme.font.family,
+    fontWeight: theme.weight.semibold,
   };
   return (
-    <a href={link.href} target="_blank" rel="noreferrer" style={row}>
+    <a href={link.href} target="_blank" rel="noreferrer" style={ribbon} title={text}>
       <span
         style={{
-          width: 8,
-          height: 28,
-          flex: "0 0 8px",
-          borderRadius: 4,
-          background: theme.text.accent,
+          writingMode: "vertical-rl",
+          transform: "rotate(180deg)",
+          letterSpacing: "0.04em",
+          overflowWrap: "anywhere",
+          maxHeight: 96,
+          textAlign: "center",
+        }}
+      >
+        {text}
+      </span>
+    </a>
+  );
+}
+
+function Ledge({ showLinksLabel }: { showLinksLabel: boolean }): JSX.Element {
+  const theme = useGrokTheme();
+  return (
+    <div style={{ width: "100%", minWidth: 0, position: "relative", zIndex: 1 }}>
+      <div
+        style={{
+          height: 10,
+          borderRadius: "4px 4px 0 0",
+          background: `linear-gradient(180deg, ${WOOD.ledgeTop} 0%, ${WOOD.ledgeFront} 100%)`,
+          boxShadow: "inset 0 1px 0 rgba(255,220,180,0.18)",
         }}
       />
-      <span style={{ fontWeight: theme.weight.semibold, overflowWrap: "anywhere", minWidth: 0 }}>{link.label}</span>
-      {showDisplay ? (
-        <span style={{ color: theme.text.tertiary, overflowWrap: "anywhere", minWidth: 0, flex: "1 1 auto" }}>
-          · {link.display}
-        </span>
-      ) : null}
-    </a>
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "flex-start",
+          gap: 8,
+          minHeight: 28,
+          padding: "6px 14px",
+          boxSizing: "border-box",
+          borderRadius: "0 0 6px 6px",
+          background: `linear-gradient(180deg, ${WOOD.ledgeFront} 0%, ${WOOD.ledgeLip} 100%)`,
+          boxShadow: "0 12px 20px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,200,140,0.08)",
+          border: `1px solid ${WOOD.spineEdge}`,
+          borderTop: "none",
+        }}
+      >
+        {showLinksLabel ? (
+          <>
+            <span
+              style={{
+                fontFamily: SERIF,
+                fontSize: 11,
+                letterSpacing: "0.16em",
+                textTransform: "uppercase",
+                fontWeight: theme.weight.semibold,
+                color: "#f0e6d6",
+              }}
+            >
+              Links
+            </span>
+            <span
+              style={{
+                width: 6,
+                height: 6,
+                borderRadius: theme.radius.full,
+                background: theme.text.accent,
+                flexShrink: 0,
+              }}
+            />
+          </>
+        ) : null}
+      </div>
+    </div>
   );
 }
 
 export default function App(): JSX.Element {
   const theme = useGrokTheme();
   const handle = atHandle(HANDLE);
+  const hasShelf = bots.length > 0 || links.length > 0;
+  const dark = theme.kind === "dark";
+  const ink = dark ? "#f7f1e6" : "#1a100c";
+  const inkMuted = dark ? "rgba(247,241,230,0.78)" : "rgba(26,16,12,0.72)";
+  const inkFaint = dark ? "rgba(247,241,230,0.55)" : "rgba(26,16,12,0.5)";
   const page: CSSProperties = {
+    position: "relative",
     width: "100%",
     minHeight: "100%",
     overflowX: "hidden",
-    background: theme.bg.base,
-    color: theme.text.primary,
+    background: dark ? WOOD.wallDeep : "#d4c0a8",
+    color: ink,
     fontFamily: theme.font.family,
     boxSizing: "border-box",
   };
   const band: CSSProperties = {
+    position: "relative",
+    zIndex: 1,
     width: "100%",
-    maxWidth: 480,
+    maxWidth: 440,
     margin: "0 auto",
     boxSizing: "border-box",
     paddingTop: "max(28px, env(safe-area-inset-top, 0px))",
@@ -219,12 +440,27 @@ export default function App(): JSX.Element {
     display: "flex",
     flexDirection: "column",
     alignItems: "stretch",
-    gap: 24,
+    gap: 22,
   };
 
   return (
     <div id={LAYOUT} style={page}>
+      <ShelfWash />
       <div style={band}>
+        <p
+          style={{
+            margin: 0,
+            fontFamily: SERIF,
+            fontSize: 18,
+            letterSpacing: "0.04em",
+            color: WOOD.gold,
+            textAlign: "center",
+            textShadow: "0 1px 2px rgba(0,0,0,0.45)",
+          }}
+        >
+          Shelf
+        </p>
+
         <header style={{ display: "flex", alignItems: "center", gap: 14, width: "100%", minWidth: 0 }}>
           <div
             style={{
@@ -233,8 +469,9 @@ export default function App(): JSX.Element {
               flex: "0 0 64px",
               borderRadius: theme.radius.full,
               overflow: "hidden",
-              border: `2px solid ${theme.border.default}`,
-              background: theme.fill.secondary,
+              border: `2px solid ${WOOD.gold}`,
+              background: WOOD.spineBot,
+              boxShadow: "0 4px 12px rgba(0,0,0,0.35)",
             }}
           >
             <Image src={AVATAR} alt={`${DISPLAY_NAME} avatar`} width={64} height={64} fit="cover" />
@@ -243,21 +480,34 @@ export default function App(): JSX.Element {
             <h1
               style={{
                 ...theme.font.heading2,
+                fontFamily: SERIF,
                 fontWeight: theme.weight.semibold,
-                letterSpacing: "-0.03em",
+                letterSpacing: "-0.02em",
                 margin: 0,
                 overflowWrap: "anywhere",
+                color: ink,
               }}
             >
               {DISPLAY_NAME}
             </h1>
             {handle.length > 0 ? (
-              <p style={{ ...theme.font.subtext, color: theme.text.accent, margin: "4px 0 0", overflowWrap: "anywhere" }}>{handle}</p>
+              <p
+                style={{
+                  ...theme.font.subtext,
+                  fontFamily: theme.font.family,
+                  color: theme.text.accent,
+                  margin: "4px 0 0",
+                  overflowWrap: "anywhere",
+                }}
+              >
+                {handle}
+              </p>
             ) : null}
             <p
               style={{
                 ...theme.font.subtext,
-                color: theme.text.secondary,
+                fontFamily: theme.font.family,
+                color: inkMuted,
                 margin: "6px 0 0",
                 overflowWrap: "anywhere",
               }}
@@ -267,75 +517,66 @@ export default function App(): JSX.Element {
           </div>
         </header>
 
-        {bots.length > 0 ? (
-          <section style={{ width: "100%", minWidth: 0 }}>
-            <div
-              style={{
-                display: "flex",
-                gap: 12,
-                width: "100%",
-                minWidth: 0,
-                overflowX: "auto",
-                paddingBottom: 4,
-                alignItems: "stretch",
-              }}
-            >
-              {bots.map((bot, index) => (
-                <Spine key={`${bot.href}-${index}`} bot={bot} />
-              ))}
-            </div>
-            <div
-              style={{
-                marginTop: 8,
-                height: 14,
-                borderRadius: 8,
-                background: theme.fill.secondary,
-                border: `1px solid ${theme.border.subtle}`,
-              }}
-            />
-          </section>
-        ) : null}
-
-        {links.length > 0 ? (
+        {hasShelf ? (
           <section style={{ width: "100%", minWidth: 0, display: "flex", flexDirection: "column", gap: 0 }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
-              <span
+            {bots.length > 0 ? (
+              <div
                 style={{
-                  ...theme.font.label,
-                  letterSpacing: "0.14em",
-                  textTransform: "uppercase",
-                  fontWeight: theme.weight.semibold,
-                  color: theme.text.primary,
+                  display: "flex",
+                  flexWrap: "wrap",
+                  gap: 10,
+                  width: "100%",
+                  minWidth: 0,
+                  alignItems: "stretch",
+                  justifyContent: "center",
+                  paddingBottom: 0,
+                  marginBottom: -2,
+                  position: "relative",
+                  zIndex: 2,
                 }}
               >
-                Links
-              </span>
-              <span
+                {bots.map((bot, index) => (
+                  <Spine key={`${bot.href}-${index}`} bot={bot} />
+                ))}
+              </div>
+            ) : null}
+
+            <Ledge showLinksLabel={links.length > 0} />
+
+            {links.length > 0 ? (
+              <div
                 style={{
-                  width: 6,
-                  height: 6,
-                  borderRadius: theme.radius.full,
-                  background: theme.text.accent,
-                  flexShrink: 0,
+                  display: "flex",
+                  flexWrap: "wrap",
+                  gap: 10,
+                  width: "100%",
+                  minWidth: 0,
+                  justifyContent: "center",
+                  alignItems: "flex-start",
+                  paddingTop: 0,
+                  marginTop: -2,
+                  position: "relative",
+                  zIndex: 0,
                 }}
-              />
-            </div>
-            <div style={{ display: "flex", flexDirection: "column", gap: 6, width: "100%", minWidth: 0 }}>
-              {links.map((link, index) => (
-                <Bookmark key={`${link.href}-${index}`} link={link} />
-              ))}
-            </div>
+              >
+                {links.map((link, index) => (
+                  <Ribbon key={`${link.href}-${index}`} link={link} />
+                ))}
+              </div>
+            ) : null}
           </section>
         ) : null}
 
         <p
           style={{
             ...theme.font.caption,
-            color: theme.text.tertiary,
+            fontFamily: theme.font.family,
+            color: inkFaint,
             margin: 0,
             width: "100%",
             minWidth: 0,
             overflowWrap: "anywhere",
+            textAlign: "center",
           }}
         >
           {FOOTER}
