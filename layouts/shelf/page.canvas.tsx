@@ -2,10 +2,10 @@ import { useGrokTheme, Image, type CSSProperties } from "grok/canvas";
 
 /**
  * Pinned .me pack — Shelf.
- * Still-faithful materials: warm oak spine / wall / ledge JPEG data URIs as
- * real <Image> fills (not CSS background wallpaper crops). Thick book spines
- * (~110×340), recessed purple icon wells, engraved serif titles, soft shadows
- * onto the ledge. Swallowtail ribbons under the ledge.
+ * Photoreal warm oak books via real <Image> spine tiles (not CSS wallpaper crops).
+ * Wall: #a8662a + soft-light warm gradient over wood texture. Thick book spines
+ * (~110×340), recessed purple icon wells, cream engraved serif titles, soft
+ * shadows onto the ledge. Swallowtail ribbons under the ledge.
  * NO pack wordmark — header is avatar + display name + handle + bio only.
  * Replace the constants and the bots/links arrays. Leave the JSX alone. See README.md.
  */
@@ -239,9 +239,9 @@ function Spine({ bot, index = 0 }: { bot: Bot; index?: number }): JSX.Element {
             overflowWrap: "anywhere",
             maxHeight: 210,
             textAlign: "center",
-            color: theme.text.secondary,
-            opacity: 0.92,
-            textShadow: `0 1px 0 ${theme.border.subtle}, 0 -1px 0 ${theme.border.strong}`,
+            color: "#f5ead6",
+            textShadow:
+              "0 1px 0 rgba(255,236,200,0.35), 0 -1px 0 rgba(40,18,6,0.65), 1px 0 0 rgba(40,18,6,0.35), -1px 0 0 rgba(255,236,200,0.2)",
           }}
         >
           {base.length > 0 ? <span>{base}</span> : null}
@@ -421,6 +421,11 @@ export default function App(): JSX.Element {
     minHeight: "100%",
     overflowX: "hidden",
     backgroundColor: "#a8662a",
+    backgroundImage: `linear-gradient(rgba(255,216,152,0.55), rgba(226,156,88,0.6)), url(${WOOD_WALL})`,
+    backgroundSize: "cover, cover",
+    backgroundPosition: "center, center",
+    backgroundRepeat: "no-repeat, no-repeat",
+    backgroundBlendMode: "soft-light, normal",
     color: theme.text.primary,
     fontFamily: theme.font.family,
     boxSizing: "border-box",
@@ -449,32 +454,9 @@ export default function App(): JSX.Element {
         style={{
           position: "absolute",
           inset: 0,
-          zIndex: 0,
-          pointerEvents: "none",
-          overflow: "hidden",
-        }}
-      >
-        <Image src={WOOD_WALL} alt="" width={440} height={900} fit="cover" />
-      </div>
-      <div
-        aria-hidden
-        style={{
-          position: "absolute",
-          inset: 0,
           pointerEvents: "none",
           background:
-            "linear-gradient(180deg, rgba(255,200,120,0.28) 0%, rgba(168,102,42,0.15) 40%, rgba(40,18,6,0.55) 100%)",
-          mixBlendMode: "soft-light",
-          zIndex: 0,
-        }}
-      />
-      <div
-        aria-hidden
-        style={{
-          position: "absolute",
-          inset: 0,
-          pointerEvents: "none",
-          background: `radial-gradient(ellipse at 50% 28%, ${theme.border.subtle} 0%, transparent 55%, ${theme.border.strong} 100%)`,
+            "radial-gradient(ellipse at 50% 28%, rgba(255,230,180,0.12) 0%, transparent 55%, rgba(80,40,10,0.28) 100%)",
           zIndex: 0,
         }}
       />
