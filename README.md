@@ -98,7 +98,7 @@ Templates normalize at render: a missing `@` is added, an existing `@` is kept. 
 ## What each pack is
 
 - **Stack** — centered header (avatar, name, handle, bio), equal bot cards (64px icon, Install pill), Quiet Links, footer. A subtle `BrandWash` canvas sits behind the column. That paint function is the only place hex is allowed.
-- **Billboard** — small avatar, oversized display name, full-width loud Install tiles, a short link row, footer. Tiles and link chips are liquid-glass panes (frost, specular rim, blur) over a theme-colored lumen field.
+- **Billboard** — small avatar, oversized display name, handle, bio, full-width loud Install tiles, a short link row, footer. No pack wordmark and no kicker. Tiles and link chips are liquid-glass panes (frost, specular rim, blur) over a theme-colored lumen field.
 - **Magazine** — left editorial header, first bot as the featured Install hero, later bots as compact rows, Links, footer.
 - **Terminal** — monospace page (`theme.font.mono` + `theme.font.code`), `#` comment bio, dense `[install]` rows, minimal chrome.
 - **Bento** — asymmetric mosaic: avatar/name in one cell, bio in another, bots[0] as a large featured Install tile, later bots as compact chips, links as thin bars in a mosaic cell, footer.
