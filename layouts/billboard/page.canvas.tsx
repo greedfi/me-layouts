@@ -3,7 +3,7 @@ import { useGrokTheme, Image, useEffect, useRef, type CSSProperties } from "grok
 /**
  * Pinned .me pack — billboard.
  * Small avatar, oversized name, full-width Install tiles, link row. Liquid glass panes.
- * Header is avatar, display name, handle, and bio only — no pack wordmark.
+ * Header is avatar, display name, handle, and bio only — no pack wordmark, no kicker.
  * Replace the constants and the bots/links arrays. Leave the JSX alone. See README.md.
  */
 
@@ -542,24 +542,8 @@ export default function App(): JSX.Element {
       <FieldGrain />
       <div style={bandStyle(500, 22, "stretch")}>
         <header style={{ display: "flex", flexDirection: "column", alignItems: "stretch", gap: 12, width: "100%", minWidth: 0 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}>
-            <div style={avatarRing(40)}>
-              <Image src={AVATAR} alt={`${DISPLAY_NAME} avatar`} width={40} height={40} fit="cover" />
-            </div>
-            <span
-              style={{
-                ...theme.font.label,
-                color: theme.text.accent,
-                letterSpacing: "0.16em",
-                textTransform: "uppercase",
-                fontWeight: theme.weight.semibold,
-                minWidth: 0,
-                overflowWrap: "anywhere",
-                textShadow: TEXT_LIFT,
-              }}
-            >
-              Creator bot by
-            </span>
+          <div style={avatarRing(40)}>
+            <Image src={AVATAR} alt={`${DISPLAY_NAME} avatar`} width={40} height={40} fit="cover" />
           </div>
           <h1
             style={{
