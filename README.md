@@ -98,7 +98,7 @@ Templates normalize at render: a missing `@` is added, an existing `@` is kept. 
 ## What each pack is
 
 - **Stack** — centered header (avatar, name, handle, bio), equal bot cards (64px icon, Install pill), Quiet Links, footer. A subtle `BrandWash` canvas sits behind the column. That paint function is the only place hex is allowed.
-- **Billboard** — small avatar, oversized display name, full-width loud Install tiles, a short link row, footer.
+- **Billboard** — small avatar, oversized display name, full-width loud Install tiles, a short link row, footer. Tiles and link chips are liquid-glass panes (frost, specular rim, blur) over a theme-colored lumen field.
 - **Magazine** — left editorial header, first bot as the featured Install hero, later bots as compact rows, Links, footer.
 - **Terminal** — monospace page (`theme.font.mono` + `theme.font.code`), `#` comment bio, dense `[install]` rows, minimal chrome.
 - **Bento** — asymmetric mosaic: avatar/name in one cell, bio in another, bots[0] as a large featured Install tile, later bots as compact chips, links as thin bars in a mosaic cell, footer.
@@ -114,6 +114,6 @@ Templates normalize at render: a missing `@` is added, an existing `@` is kept. 
 - No Duo frame and no phone chrome (no status bar, no home indicator, no device bezel).
 - No `fetch`, no network, no remote image URLs. Avatars and icons are `data:image/...` after fill. Until fill, the placeholders are not fetched.
 - Mobile-first: width 100%, max width 440–520 centered, `env(safe-area-inset-*)` padding, touch targets at least 44px, no horizontal overflow at 320px. Text wrappers use `minWidth: 0` and `overflowWrap`.
-- Colors come from `useGrokTheme()`. The only hex literals live inside Stack's `BrandWash` 2D canvas. Do not add hex, a theme toggle, or new chrome when filling.
+- Colors come from `useGrokTheme()`. Stack's `BrandWash` canvas may use hex. Billboard's liquid-glass panes also keep module-level material constants (rgba and `data:image` frost/sheen); the lumen field is a canvas whose orb colors are theme tokens. Do not add a theme toggle, device chrome, or a second copy of the fill tokens.
 - Install hrefs must be real `https://x.ai/bot/...` URLs after fill.
 - Leave `export default function App` and `export const LAYOUT` in place.
