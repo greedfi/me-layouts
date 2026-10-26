@@ -231,21 +231,36 @@ async function main() {
 
   const html = await readFile(path.join(root, "out", "index.html"), "utf8");
   const js = await readFile(path.join(root, "billboard.js"), "utf8");
-  assert(html.includes("<title></title>"), "unfilled build keeps an empty title");
+  // Pack source on main still has the token. A .links fill replaces it.
+  const template = /const PAGE_TITLE = "__PAGE_TITLE__"\s*;/.test(js);
   assert(!/<title>[^<]*Billboard/i.test(html), "shipped title does not say Billboard");
   assert(html.includes("/_vercel/insights/script.js"), "insights script is in out/");
   assert(html.includes("/_vercel/speed-insights/script.js"), "speed insights script is in out/");
-  assert(!html.includes("googletagmanager.com"), "GA is not injected while the token is a placeholder");
-  assert(!html.includes("fbevents.js"), "Meta is not injected while the token is a placeholder");
-  for (const token of ["__PAGE_TITLE__", "__GA_MEASUREMENT_ID__", "__META_PIXEL_ID__", "__DISPLAY_NAME__", "__AVATAR_DATA_URI__"]) {
-    assert(js.split(token).length === 2, token + " stays a single placeholder");
+  if (js.includes("__GA_MEASUREMENT_ID__")) {
+    assert(!html.includes("googletagmanager.com"), "GA is not injected while the token is a placeholder");
+  }
+  if (js.includes("__META_PIXEL_ID__")) {
+    assert(!html.includes("fbevents.js"), "Meta is not injected while the token is a placeholder");
+  }
+  if (template) {
+    assert(html.includes("<title></title>"), "unfilled build keeps an empty title");
+    for (const token of ["__PAGE_TITLE__", "__GA_MEASUREMENT_ID__", "__META_PIXEL_ID__", "__DISPLAY_NAME__", "__AVATAR_DATA_URI__"]) {
+      assert(js.split(token).length === 2, token + " stays a single placeholder");
+    }
+  } else {
+    const shipped = html.match(/<title>([^<]*)<\/title>/);
+    const text = shipped ? shipped[1].trim() : "";
+    const page = htmlTitle(js);
+    assert(text.length > 0, "filled build writes a non-empty title");
+    assert(page.length > 0, "filled PAGE_TITLE is non-empty");
+    assert(!/billboard/i.test(page), "filled title is not the word Billboard");
   }
 
   if (failed > 0) {
     console.error(failed + " assertion(s) failed");
     process.exit(1);
   }
-  console.log("hit checks ok");
+  console.log(template ? "hit checks ok (template)" : "hit checks ok (filled)");
 }
 
 await main();

@@ -108,4 +108,4 @@ From this directory (`vercel/billboard`), or with the Vercel project **Root Dire
 
 On the new project: enable Web Analytics, and connect a private Blob store (Hobby, included, no charge inside the allowance). Leave Speed Insights Plus off. The free Speed Insights script is already in the page. Do not ask for a GA or Meta id.
 
-The build still succeeds after the tokens are filled. It does not require the placeholders to remain.
+Root Directory deploy runs this build after fill and does not need a prebuilt `out/`. While `const PAGE_TITLE = "__PAGE_TITLE__"` is still in `billboard.js`, the build checks the pack placeholders: an empty `<title>`, and one each of `__PAGE_TITLE__`, `__DISPLAY_NAME__`, and `__AVATAR_DATA_URI__` (plus the GA and Meta tokens). After `PAGE_TITLE` is filled, those template checks are skipped. The shipped tab title must be non-empty and must not be the word Billboard. `/api/hit` checks still run either way, and the command exits 0 for a filled page.

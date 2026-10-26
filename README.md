@@ -147,6 +147,8 @@ The string initializers in `billboard.js` are the same ones as the canvas pack, 
 
 The Vercel file also has `PAGE_TITLE` (`__PAGE_TITLE__`). Fill it with the username (preferred) or the display name. That string is the browser tab. Do not leave the word Billboard as the tab title, and name the Vercel project after the username only (never `*-billboard-*`). `GA_MEASUREMENT_ID` and `META_PIXEL_ID` stay placeholders. Do not ask for them at setup. The canvas file does not have these three. Vercel Web Analytics and `/api/hit` do not apply to the Pages canvas. Click counts for the Vercel route are `GET /api/hit` (Hobby, private Blob included on the free allowance). Details are in `vercel/billboard/README.md`.
 
+After fill, `node scripts/build.mjs` from `vercel/billboard` still exits 0. Placeholder checks (empty `<title>`, `__PAGE_TITLE__`, `__DISPLAY_NAME__`, `__AVATAR_DATA_URI__`) run only while `__PAGE_TITLE__` is the `PAGE_TITLE` value. A Root Directory Git or CLI deploy does not need a prebuilt `out/`.
+
 `APPEARANCE` is ignored. The static page follows `prefers-color-scheme` (light is day, dark is the charcoal field), the same device rule as `useGrokTheme`. `STAGE` `color` uses the photographic silk plates from the canvas (bundled under `vercel/billboard/assets/`) and the same drift loops, including the reduced-motion resting pose. A named `ACCENT` hue-shifts that silk. Do not point the plates at a CDN, and do not edit the canvas file while filling this route.
 
 Full notes for the filler, including `vercel deploy` settings, are in `vercel/billboard/README.md`.
