@@ -223,7 +223,6 @@ for (const token of [
   "const OG_IMAGE_URL",
   "const GA_MEASUREMENT_ID",
   "const META_PIXEL_ID",
-  "const LINKS_SHARE_HREF",
   "const bots",
   "const links",
   'const LAYOUT = "billboard"',
