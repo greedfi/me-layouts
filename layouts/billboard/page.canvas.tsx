@@ -12,7 +12,11 @@ import { useGrokTheme, Image, useEffect, useRef, useState, type CSSProperties, t
  * legibility shadow, tight semibold titles, and a restrained lens drop-shadow so
  * tile titles sit in the glass instead of on it.
  * Tiles and chips lift, wash, and press.
- * The stage is a dark field with hard rules so refraction has an edge to bend.
+ * The stage is an animated lumen field: slow blooms and a drifting sheen over
+ * hard rules, so the glass has an edge to bend. APPEARANCE is night, dark, or
+ * day (unset follows the viewer; a dark viewer stays on the charcoal field).
+ * STAGE is graphite or color (unset stays graphite). Night is a deeper, cooler
+ * black. Color is muted blooms under the same glass, not lacquer.
  * No photographed frost plates.
  * Replace the constants and the bots/links arrays. Leave the JSX alone. See README.md.
  *
@@ -28,6 +32,10 @@ const DISPLAY_NAME = "__DISPLAY_NAME__";
 const HANDLE = "__HANDLE__";
 const BIO = "__BIO__";
 const FOOTER = "__FOOTER__";
+/** Owner appearance: night, dark, or day. light aliases day. Unset follows the viewer. */
+const APPEARANCE = "__APPEARANCE__";
+/** Stage palette: graphite or color. colour aliases color. Unset stays graphite. */
+const STAGE = "__STAGE__";
 
 type Bot = {
   name: string;
@@ -148,6 +156,29 @@ const BAND_DARK = "linear-gradient(90deg, rgba(255,255,255,0), rgba(255,255,255,
 const BAND_LIGHT = "linear-gradient(90deg, rgba(0,0,0,0), rgba(0,0,0,0.55), rgba(0,0,0,0))";
 const SCRIM_DARK = "linear-gradient(180deg, rgba(0,0,0,0.10), rgba(0,0,0,0) 38%, rgba(0,0,0,0.45))";
 const SCRIM_LIGHT = "linear-gradient(180deg, rgba(255,255,255,0.04), rgba(0,0,0,0) 40%, rgba(16,16,24,0.16))";
+const SCRIM_NIGHT = "linear-gradient(180deg, rgba(0,0,0,0.22), rgba(0,0,0,0) 40%, rgba(0,0,0,0.55))";
+const SCRIM_COLOR_DARK = "linear-gradient(180deg, rgba(0,0,0,0.46), rgba(0,0,0,0) 28%, rgba(0,0,0,0.50))";
+const SCRIM_COLOR_LIGHT = "linear-gradient(180deg, rgba(255,255,255,0.55), rgba(255,255,255,0) 30%, rgba(255,255,255,0.50))";
+/** Deeper than the charcoal field. The cool cast is the veil, not an accent wash. */
+const NIGHT_FIELD = "#000000";
+/** Charcoal used when dark is forced on a light host. */
+const DARK_FIELD = "#141418";
+/** Paper used when day is forced on a dark host. */
+const DAY_FIELD = "#f4f5f7";
+const NIGHT_BLOOM = "rgba(198, 214, 228, 1)";
+const NIGHT_BLOOM_DIM = "rgba(154, 172, 190, 1)";
+const NIGHT_VEIL = "radial-gradient(90% 52% at 50% -8%, rgba(92, 112, 132, 0.22), rgba(2, 3, 8, 0) 62%)";
+const FORCED_WELL_DARK = "rgba(255,255,255,0.10)";
+const FORCED_WELL_LIGHT = "rgba(18,18,20,0.06)";
+const FORCED_DIM_DARK = "rgba(186, 190, 198, 1)";
+const FORCED_DIM_LIGHT = "rgba(70, 72, 78, 1)";
+/** Muted stage hues. Never theme.accent, never tile lacquer. */
+const COLOR_NIGHT = ["rgba(168, 120, 188, 1)", "rgba(90, 140, 168, 1)", "rgba(176, 96, 120, 1)", "rgba(140, 160, 184, 1)"] as const;
+const COLOR_DARK = ["rgba(186, 110, 140, 1)", "rgba(110, 156, 120, 1)", "rgba(170, 120, 110, 1)", "rgba(130, 140, 176, 1)"] as const;
+const COLOR_DAY = ["rgba(232, 150, 168, 1)", "rgba(140, 190, 150, 1)", "rgba(176, 160, 214, 1)", "rgba(150, 186, 204, 1)"] as const;
+const COLOR_NIGHT_OPACITY = [0.55, 0.46, 0.4, 0.28] as const;
+const COLOR_DARK_OPACITY = [0.62, 0.5, 0.44, 0.3] as const;
+const COLOR_DAY_OPACITY = [0.55, 0.48, 0.42, 0.32] as const;
 
 /** now-playing micro labels: 0 1px 3px rgba(0,0,0,0.45). Light is the inverted lift. */
 const SOFT_SHADOW_DARK = "0 1px 3px rgba(0,0,0,0.45)";
@@ -440,8 +471,8 @@ function GlassPane({
   contentStyle: CSSProperties;
   children: ReactNode;
 }): JSX.Element {
-  const theme = useGrokTheme();
-  const dark = theme.kind === "dark";
+  const look = useBillboardLook();
+  const dark = look.dark;
   const dial: Dial = kind === "tile" ? TILE_DIAL : CHIP_DIAL;
   const ref = useRef<HTMLAnchorElement | null>(null);
   const idRef = useRef("");
@@ -528,7 +559,7 @@ function GlassPane({
         boxSizing: "border-box",
         borderRadius: radius,
         textDecoration: "none",
-        color: theme.text.primary,
+        color: look.ink,
         cursor: "pointer",
         transform,
         transformOrigin: "center",
@@ -676,6 +707,52 @@ function dimInk(ink: string): string {
   return `color-mix(in srgb, ${ink} 55%, ${CLEAR})`;
 }
 
+type Appearance = "night" | "dark" | "day";
+type StageMood = "graphite" | "color";
+
+type BillboardLook = {
+  theme: ReturnType<typeof useGrokTheme>;
+  appearance: Appearance;
+  stage: StageMood;
+  /** Night and dark share the dark glass stack. Day uses the light stack. */
+  dark: boolean;
+  ink: string;
+  bg: string;
+  well: string;
+};
+
+function resolveAppearance(raw: string, host: "light" | "dark"): Appearance {
+  const value = raw.trim().toLowerCase();
+  if (value === "night") return "night";
+  if (value === "dark") return "dark";
+  if (value === "day" || value === "light") return "day";
+  return host === "light" ? "day" : "dark";
+}
+
+function resolveStage(raw: string): StageMood {
+  const value = raw.trim().toLowerCase();
+  if (value === "color" || value === "colour") return "color";
+  return "graphite";
+}
+
+/**
+ * Fill tokens win when they name a mode. Anything else, including the
+ * unreplaced token, follows the viewer and stays on graphite — so a page
+ * that never set these still looks like the shipped charcoal field.
+ */
+function useBillboardLook(): BillboardLook {
+  const theme = useGrokTheme();
+  const appearance = resolveAppearance(APPEARANCE, theme.kind);
+  const stage = resolveStage(STAGE);
+  const dark = appearance !== "day";
+  const hostDark = theme.kind === "dark";
+  const matched = dark === hostDark;
+  const ink = matched ? theme.text.primary : dark ? SILVER : GRAPHITE;
+  const bg = appearance === "night" ? NIGHT_FIELD : appearance === "day" ? (hostDark ? DAY_FIELD : theme.bg.base) : hostDark ? theme.bg.base : DARK_FIELD;
+  const well = matched ? theme.fill.secondary : dark ? FORCED_WELL_DARK : FORCED_WELL_LIGHT;
+  return { theme, appearance, stage, dark, ink, bg, well };
+}
+
 function useFocusRing(): { focused: boolean; onFocus: () => void; onBlur: () => void } {
   const [focused, setFocused] = useState(false);
   return {
@@ -685,8 +762,7 @@ function useFocusRing(): { focused: boolean; onFocus: () => void; onBlur: () => 
   };
 }
 
-function iconWell(size: number, radius: number, theme: ReturnType<typeof useGrokTheme>): CSSProperties {
-  const dark = theme.kind === "dark";
+function iconWell(size: number, radius: number, look: BillboardLook): CSSProperties {
   return {
     width: size,
     height: size,
@@ -695,85 +771,190 @@ function iconWell(size: number, radius: number, theme: ReturnType<typeof useGrok
     overflow: "hidden",
     position: "relative",
     zIndex: 1,
-    background: theme.fill.secondary,
-    boxShadow: dark ? ICON_RING_DARK : ICON_RING_LIGHT,
+    background: look.well,
+    boxShadow: look.dark ? ICON_RING_DARK : ICON_RING_LIGHT,
   };
 }
 
-function avatarRing(theme: ReturnType<typeof useGrokTheme>): CSSProperties {
-  const dark = theme.kind === "dark";
+function avatarRing(look: BillboardLook): CSSProperties {
   return {
     width: AVATAR_SIZE,
     height: AVATAR_SIZE,
     flex: `0 0 ${AVATAR_SIZE}px`,
     borderRadius: 9999,
     overflow: "hidden",
-    background: theme.fill.secondary,
-    boxShadow: dark ? AVATAR_RING_DARK : AVATAR_RING_LIGHT,
+    background: look.well,
+    boxShadow: look.dark ? AVATAR_RING_DARK : AVATAR_RING_LIGHT,
   };
 }
 
+type DriftName = "a" | "b" | "c" | "d" | "bandA" | "bandB";
+
 /**
- * What the lens looks at. Port of PlayerBackdrop: soft blooms for colour,
- * 1px rules and a hard-edged diagonal band for evidence, a bottom scrim
- * for type. Neutral ink only — no accent tile wash.
+ * Transform only, so the glass displacement maps are not rebuilt each frame.
+ * The first keyframe is the resting pose (reduced motion, and the frame
+ * before animate() starts). Durations are long on purpose.
+ */
+const DRIFT_FRAMES: Record<DriftName, [{ transform: string }, { transform: string }]> = {
+  a: [{ transform: "translate3d(0%, 0%, 0) scale(1)" }, { transform: "translate3d(14%, 9%, 0) scale(1.08)" }],
+  b: [{ transform: "translate3d(0%, 0%, 0) scale(1)" }, { transform: "translate3d(-12%, 11%, 0) scale(1.06)" }],
+  c: [{ transform: "translate3d(0%, 0%, 0) scale(1)" }, { transform: "translate3d(10%, -12%, 0) scale(0.94)" }],
+  d: [{ transform: "translate3d(0%, 0%, 0) scale(1)" }, { transform: "translate3d(-8%, -7%, 0) scale(1.1)" }],
+  bandA: [{ transform: "rotate(-6deg) translate3d(0%, 0, 0)" }, { transform: "rotate(-6deg) translate3d(8%, 0, 0)" }],
+  bandB: [{ transform: "rotate(7deg) translate3d(0%, 0, 0)" }, { transform: "rotate(7deg) translate3d(-8%, 0, 0)" }],
+};
+
+const DRIFT_MS: Record<DriftName, number> = {
+  a: 18000,
+  b: 24000,
+  c: 21000,
+  d: 28000,
+  bandA: 16000,
+  bandB: 22000,
+};
+
+function ensureDriftCss(): void {
+  if (typeof document === "undefined" || !document.head) return;
+  if (document.getElementById("billboard-drift")) return;
+  const style = document.createElement("style");
+  style.id = "billboard-drift";
+  const names = Object.keys(DRIFT_FRAMES) as DriftName[];
+  const body = names
+    .map((name) => {
+      const [from, to] = DRIFT_FRAMES[name];
+      return `@keyframes bb-drift-${name}{from{transform:${from.transform}}to{transform:${to.transform}}}`;
+    })
+    .join("");
+  style.textContent = `${body}@media (prefers-reduced-motion:reduce){[data-bb-drift]{animation:none!important}}`;
+  document.head.appendChild(style);
+}
+
+/**
+ * Slow drift via the Web Animations API so React does not re-render the
+ * glass. A stylesheet is the fallback when animate() is missing.
+ */
+function Drift({ name, style }: { name: DriftName; style: CSSProperties }): JSX.Element {
+  const ref = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    const node = ref.current;
+    if (!node) return;
+    const reduce =
+      typeof window !== "undefined" && typeof window.matchMedia === "function" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (reduce) return;
+    const frames = DRIFT_FRAMES[name];
+    const duration = DRIFT_MS[name];
+    if (typeof node.animate === "function") {
+      const anim = node.animate(frames, {
+        duration,
+        iterations: Infinity,
+        direction: "alternate",
+        easing: "ease-in-out",
+        fill: "both",
+      });
+      return (): void => {
+        anim.cancel();
+      };
+    }
+    ensureDriftCss();
+    node.style.animation = `bb-drift-${name} ${duration}ms ease-in-out infinite alternate`;
+    return (): void => {
+      node.style.animation = "";
+    };
+  }, [name]);
+  return <div ref={ref} data-bb-drift={name} style={style} />;
+}
+
+type BloomSpec = {
+  key: string;
+  drift: DriftName;
+  color: string;
+  opacity: number;
+  blur: number;
+  box: CSSProperties;
+};
+
+const BLOOM_BOX: readonly CSSProperties[] = [
+  { left: "-12%", top: "-18%", width: "78%", height: "52%" },
+  { right: "-18%", top: "22%", width: "70%", height: "46%" },
+  { left: "8%", bottom: "-20%", width: "84%", height: "48%" },
+  { left: "28%", top: "34%", width: "50%", height: "38%" },
+];
+const BLOOM_BLUR = [90, 100, 110, 80] as const;
+const BLOOM_DRIFT: readonly DriftName[] = ["a", "b", "c", "d"];
+
+function stageBlooms(look: BillboardLook): BloomSpec[] {
+  if (look.stage === "color") {
+    const palette = look.appearance === "night" ? COLOR_NIGHT : look.appearance === "day" ? COLOR_DAY : COLOR_DARK;
+    const opacity = look.appearance === "night" ? COLOR_NIGHT_OPACITY : look.appearance === "day" ? COLOR_DAY_OPACITY : COLOR_DARK_OPACITY;
+    return palette.map((color, index) => ({
+      key: `color-${index}`,
+      drift: BLOOM_DRIFT[index],
+      color,
+      opacity: opacity[index],
+      blur: BLOOM_BLUR[index],
+      box: BLOOM_BOX[index],
+    }));
+  }
+  const opacity = look.appearance === "night" ? ([0.18, 0.28, 0.12] as const) : look.appearance === "day" ? ([0.34, 0.22, 0.2] as const) : ([0.2, 0.34, 0.16] as const);
+  const hostDark = look.theme.kind === "dark";
+  let primary = look.theme.text.primary;
+  let secondary = look.theme.text.secondary;
+  if (look.appearance === "night") {
+    primary = NIGHT_BLOOM;
+    secondary = NIGHT_BLOOM_DIM;
+  } else if (look.dark !== hostDark) {
+    primary = look.dark ? SILVER : GRAPHITE;
+    secondary = look.dark ? FORCED_DIM_DARK : FORCED_DIM_LIGHT;
+  }
+  const colors = [primary, secondary, primary];
+  return colors.map((color, index) => ({
+    key: `graphite-${index}`,
+    drift: BLOOM_DRIFT[index],
+    color,
+    opacity: opacity[index],
+    blur: BLOOM_BLUR[index],
+    box: BLOOM_BOX[index],
+  }));
+}
+
+/**
+ * What the lens looks at. Port of PlayerBackdrop: soft blooms, 1px rules,
+ * and a hard-edged diagonal band. Graphite blooms stay neutral ink.
+ * Color mode swaps in muted hues. The rules stay put so refraction
+ * keeps an edge; the blooms and the sheen bands drift.
  */
 function Stage(): JSX.Element {
-  const theme = useGrokTheme();
-  const dark = theme.kind === "dark";
+  const look = useBillboardLook();
+  const dark = look.dark;
+  const night = look.appearance === "night";
   const ruleA = dark ? RULE_W50 : RULE_K50;
   const ruleB = dark ? RULE_W30 : RULE_K30;
   const ruleC = dark ? RULE_W40 : RULE_K40;
   const ruleD = dark ? RULE_W25 : RULE_K22;
   const band = dark ? BAND_DARK : BAND_LIGHT;
+  const scrim = !dark ? (look.stage === "color" ? SCRIM_COLOR_LIGHT : SCRIM_LIGHT) : look.stage === "color" ? SCRIM_COLOR_DARK : night ? SCRIM_NIGHT : SCRIM_DARK;
   const hair = (top: string, left: string, length: "h" | "v"): CSSProperties =>
     length === "h"
       ? { position: "absolute", left: 0, right: 0, top, height: 1, pointerEvents: "none" }
       : { position: "absolute", top: 0, bottom: 0, left, width: 1, pointerEvents: "none" };
   return (
     <div aria-hidden style={{ position: "absolute", inset: 0, zIndex: 0, pointerEvents: "none", overflow: "hidden" }}>
-      <div
-        style={{
-          position: "absolute",
-          left: "-12%",
-          top: "-18%",
-          width: "78%",
-          height: "52%",
-          borderRadius: "50%",
-          background: theme.text.primary,
-          filter: "blur(90px)",
-          opacity: dark ? 0.2 : 0.34,
-          pointerEvents: "none",
-        }}
-      />
-      <div
-        style={{
-          position: "absolute",
-          right: "-18%",
-          top: "22%",
-          width: "70%",
-          height: "46%",
-          borderRadius: "50%",
-          background: theme.text.secondary,
-          filter: "blur(100px)",
-          opacity: dark ? 0.34 : 0.22,
-          pointerEvents: "none",
-        }}
-      />
-      <div
-        style={{
-          position: "absolute",
-          left: "8%",
-          bottom: "-20%",
-          width: "84%",
-          height: "48%",
-          borderRadius: "50%",
-          background: theme.text.primary,
-          filter: "blur(110px)",
-          opacity: dark ? 0.16 : 0.2,
-          pointerEvents: "none",
-        }}
-      />
+      {night ? <div style={{ position: "absolute", inset: 0, background: NIGHT_VEIL, pointerEvents: "none" }} /> : null}
+      {stageBlooms(look).map((bloom) => (
+        <Drift
+          key={bloom.key}
+          name={bloom.drift}
+          style={{
+            position: "absolute",
+            borderRadius: "50%",
+            background: bloom.color,
+            filter: `blur(${bloom.blur}px)`,
+            opacity: bloom.opacity,
+            pointerEvents: "none",
+            ...bloom.box,
+          }}
+        />
+      ))}
       <div style={{ ...hair("18%", "0", "h"), background: ruleB }} />
       <div style={{ ...hair("38%", "0", "h"), background: ruleA }} />
       <div style={{ ...hair("62%", "0", "h"), background: ruleB }} />
@@ -805,7 +986,8 @@ function Stage(): JSX.Element {
           pointerEvents: "none",
         }}
       />
-      <div
+      <Drift
+        name="bandA"
         style={{
           position: "absolute",
           left: "-20%",
@@ -813,13 +995,14 @@ function Stage(): JSX.Element {
           top: "10%",
           height: 96,
           background: band,
-          opacity: dark ? 0.42 : 0.28,
+          opacity: look.stage === "color" ? (dark ? 0.18 : 0.14) : night ? 0.32 : dark ? 0.42 : 0.28,
           transform: "rotate(-6deg)",
           transformOrigin: "left center",
           pointerEvents: "none",
         }}
       />
-      <div
+      <Drift
+        name="bandB"
         style={{
           position: "absolute",
           left: "-20%",
@@ -827,27 +1010,27 @@ function Stage(): JSX.Element {
           top: "48%",
           height: 72,
           background: band,
-          opacity: dark ? 0.34 : 0.22,
+          opacity: look.stage === "color" ? (dark ? 0.12 : 0.1) : night ? 0.24 : dark ? 0.34 : 0.22,
           transform: "rotate(7deg)",
           transformOrigin: "left center",
           pointerEvents: "none",
         }}
       />
-      <div style={{ position: "absolute", inset: 0, background: dark ? SCRIM_DARK : SCRIM_LIGHT, pointerEvents: "none" }} />
+      <div style={{ position: "absolute", inset: 0, background: scrim, pointerEvents: "none" }} />
     </div>
   );
 }
 
-function pageStyle(theme: ReturnType<typeof useGrokTheme>): CSSProperties {
+function pageStyle(look: BillboardLook): CSSProperties {
   return {
     position: "relative",
     width: "100%",
     maxWidth: "100%",
     minHeight: "100%",
     overflowX: "hidden",
-    background: theme.bg.base,
-    color: theme.text.primary,
-    fontFamily: theme.font.family,
+    background: look.bg,
+    color: look.ink,
+    fontFamily: look.theme.font.family,
     fontSynthesis: "none",
     WebkitFontSmoothing: "antialiased",
     MozOsxFontSmoothing: "grayscale",
@@ -892,7 +1075,8 @@ const CHIP_LINE: CSSProperties = {
 };
 
 function InstallTile({ bot }: { bot: Bot }): JSX.Element {
-  const theme = useGrokTheme();
+  const look = useBillboardLook();
+  const theme = look.theme;
   const ring = useFocusRing();
   const name = filled(bot.name);
   const desc = filled(bot.desc);
@@ -917,7 +1101,7 @@ function InstallTile({ bot }: { bot: Bot }): JSX.Element {
       }}
       children={[
         <div key="row" style={{ display: "flex", alignItems: "center", gap: 14, width: "100%", minWidth: 0 }}>
-          <div style={iconWell(64, 16, theme)}>
+          <div style={iconWell(64, 16, look)}>
             {icon.length > 0 ? <Image src={icon} alt={name.length > 0 ? `${name} icon` : "Bot icon"} width={64} height={64} fit="cover" /> : null}
           </div>
           {name.length > 0 ? (
@@ -926,7 +1110,7 @@ function InstallTile({ bot }: { bot: Bot }): JSX.Element {
                 ...theme.font.heading1,
                 ...FORE,
                 fontFamily: theme.font.family,
-                color: theme.text.primary,
+                color: look.ink,
                 fontSize: "clamp(24px, 6.4vw, 30px)",
                 lineHeight: 1.05,
                 fontWeight: 700,
@@ -954,7 +1138,7 @@ function InstallTile({ bot }: { bot: Bot }): JSX.Element {
               ...theme.font.body1,
               ...FORE,
               fontFamily: theme.font.family,
-              color: dimInk(theme.text.primary),
+              color: dimInk(look.ink),
               fontSize: 14,
               lineHeight: 1.35,
               fontWeight: theme.weight.medium,
@@ -977,7 +1161,8 @@ function InstallTile({ bot }: { bot: Bot }): JSX.Element {
 }
 
 function MiniLink({ link }: { link: Link }): JSX.Element {
-  const theme = useGrokTheme();
+  const look = useBillboardLook();
+  const theme = look.theme;
   const ring = useFocusRing();
   const href = filled(link.href);
   const display = filled(link.display);
@@ -1002,7 +1187,7 @@ function MiniLink({ link }: { link: Link }): JSX.Element {
         overflow: "hidden",
         padding: "0 14px",
         ...theme.font.subtext,
-        color: theme.text.primary,
+        color: look.ink,
       }}
       children={[
         label.length > 0 ? (
@@ -1025,7 +1210,7 @@ function MiniLink({ link }: { link: Link }): JSX.Element {
             style={{
               ...CHIP_LINE,
               fontFamily: theme.font.family,
-              color: dimInk(theme.text.primary),
+              color: dimInk(look.ink),
               textShadow: "var(--bb-ink-shadow)",
               transition: `text-shadow ${MOTION}`,
             }}
@@ -1039,7 +1224,8 @@ function MiniLink({ link }: { link: Link }): JSX.Element {
 }
 
 export default function App(): JSX.Element {
-  const theme = useGrokTheme();
+  const look = useBillboardLook();
+  const theme = look.theme;
   const handle = atHandle(HANDLE);
   const hero = splitTrailingEmoji(DISPLAY_NAME);
   const bio = filled(BIO);
@@ -1048,9 +1234,9 @@ export default function App(): JSX.Element {
   const shownBots = bots.filter((bot) => filled(bot.name).length > 0 || filled(bot.desc).length > 0 || filled(bot.href).length > 0 || filled(bot.src).length > 0);
   const shownLinks = links.filter((link) => filled(link.label).length > 0 || filled(link.display).length > 0 || filled(link.href).length > 0);
   const showHero = hero.text.length > 0 || hero.clusters.length > 0;
-  const dark = theme.kind === "dark";
+  const dark = look.dark;
   return (
-    <div id={LAYOUT} style={pageStyle(theme)}>
+    <div id={LAYOUT} style={pageStyle(look)}>
       <Stage />
       <div style={bandStyle()}>
         <header
@@ -1065,7 +1251,7 @@ export default function App(): JSX.Element {
             minWidth: 0,
           }}
         >
-          <div style={avatarRing(theme)}>
+          <div style={avatarRing(look)}>
             {avatar.length > 0 ? (
               <Image src={avatar} alt={hero.text.length > 0 ? `${hero.text} avatar` : "Profile avatar"} width={AVATAR_SIZE} height={AVATAR_SIZE} fit="cover" />
             ) : null}
@@ -1074,7 +1260,7 @@ export default function App(): JSX.Element {
           <h1
             style={{
               fontFamily: theme.font.family,
-              color: theme.text.primary,
+              color: look.ink,
               fontSize: "clamp(72px, 20vw, 108px)",
               lineHeight: 0.84,
               fontWeight: 700,
@@ -1104,7 +1290,7 @@ export default function App(): JSX.Element {
             <p
               style={{
                 fontFamily: theme.font.family,
-                color: dimInk(theme.text.primary),
+                color: dimInk(look.ink),
                 fontSize: 16,
                 lineHeight: 1.25,
                 fontWeight: theme.weight.semibold,
@@ -1126,7 +1312,7 @@ export default function App(): JSX.Element {
           <p
             style={{
               fontFamily: theme.font.family,
-              color: theme.text.primary,
+              color: look.ink,
               fontSize: 15,
               lineHeight: 1.4,
               fontWeight: theme.weight.medium,
@@ -1181,7 +1367,7 @@ export default function App(): JSX.Element {
           style={{
             ...theme.font.caption,
             fontFamily: theme.font.family,
-            color: dimInk(theme.text.primary),
+            color: dimInk(look.ink),
             fontWeight: theme.weight.semibold,
             letterSpacing: "0.08em",
             textTransform: "none",
