@@ -16,8 +16,8 @@ import { useGrokTheme, Image, useEffect, useRef, useState, type CSSProperties, t
  * Weight and size carry the hierarchy: name, then handle, then bio.
  * Tiles and chips lift, wash, and press. The rim is one rounded rect: a soft
  * specular lip and a milky body, not a second corner stroke.
- * The stage is an animated lumen field: slow blooms and a drifting sheen over
- * hard rules, so the glass has an edge to bend. Graphite blooms stay neutral.
+ * The stage is an animated lumen field: slow blooms and a drifting sheen.
+ * The glass edge comes from blooms, diagonal bands, and the scrim. Graphite blooms stay neutral.
  * Color is muted blooms under the same glass, not the loud liquid ribbons, not lacquer.
  * APPEARANCE is night, dark, or day (unset follows the viewer; a dark viewer
  * stays on the charcoal field). STAGE is graphite or color (unset stays graphite).
@@ -160,14 +160,6 @@ const SCRIM_LIGHT = "linear-gradient(180deg, rgba(255,255,255,0.04), rgba(0,0,0,
 const SCRIM_NIGHT = "linear-gradient(180deg, rgba(0,0,0,0.22), rgba(0,0,0,0) 40%, rgba(0,0,0,0.55))";
 const SCRIM_COLOR_DARK = "linear-gradient(180deg, rgba(0,0,0,0.46), rgba(0,0,0,0) 28%, rgba(0,0,0,0.50))";
 const SCRIM_COLOR_LIGHT = "linear-gradient(180deg, rgba(255,255,255,0.55), rgba(255,255,255,0) 30%, rgba(255,255,255,0.50))";
-const RULE_W50 = "rgba(255,255,255,0.50)";
-const RULE_W40 = "rgba(255,255,255,0.40)";
-const RULE_W30 = "rgba(255,255,255,0.30)";
-const RULE_W25 = "rgba(255,255,255,0.25)";
-const RULE_K50 = "rgba(0,0,0,0.50)";
-const RULE_K40 = "rgba(0,0,0,0.40)";
-const RULE_K30 = "rgba(0,0,0,0.30)";
-const RULE_K22 = "rgba(0,0,0,0.22)";
 /** Deeper than the charcoal field. The cool cast is the veil, not an accent wash. */
 const NIGHT_FIELD = "#000000";
 /** Charcoal used when dark is forced on a light host. */
@@ -970,23 +962,15 @@ const STAGE_FRAME: CSSProperties = {
   overflow: "hidden",
 };
 
-const HAIR_H: CSSProperties = { position: "absolute", left: 0, right: 0, height: 1, pointerEvents: "none" };
-const HAIR_V: CSSProperties = { position: "absolute", top: 0, bottom: 0, width: 1, pointerEvents: "none" };
-
 /**
- * Lumen field from before the glossy color pass. Soft blooms, 1px rules,
- * and a hard-edged diagonal band. Graphite blooms stay neutral ink.
- * Color mode swaps in muted hues. The rules stay put so refraction
- * keeps an edge; the blooms and the sheen bands drift.
+ * Lumen field from before the glossy color pass. Soft blooms and drifting
+ * sheen bands. Graphite blooms stay neutral ink. Color mode swaps in muted
+ * hues. No hairline grid — the edge comes from the blooms, the bands, and the scrim.
  */
 function Stage(): JSX.Element {
   const look = useBillboardLook();
   const dark = look.dark;
   const night = look.appearance === "night";
-  const ruleA = dark ? RULE_W50 : RULE_K50;
-  const ruleB = dark ? RULE_W30 : RULE_K30;
-  const ruleC = dark ? RULE_W40 : RULE_K40;
-  const ruleD = dark ? RULE_W25 : RULE_K22;
   const band = dark ? BAND_DARK : BAND_LIGHT;
   const scrim = !dark ? (look.stage === "color" ? SCRIM_COLOR_LIGHT : SCRIM_LIGHT) : look.stage === "color" ? SCRIM_COLOR_DARK : night ? SCRIM_NIGHT : SCRIM_DARK;
   const bandOpacityA = look.stage === "color" ? (dark ? 0.18 : 0.14) : night ? 0.32 : dark ? 0.42 : 0.28;
@@ -1009,37 +993,6 @@ function Stage(): JSX.Element {
           }}
         />
       ))}
-      <div style={{ ...HAIR_H, top: "18%", background: ruleB }} />
-      <div style={{ ...HAIR_H, top: "38%", background: ruleA }} />
-      <div style={{ ...HAIR_H, top: "62%", background: ruleB }} />
-      <div style={{ ...HAIR_H, top: "82%", background: ruleD }} />
-      <div style={{ ...HAIR_V, left: "22%", background: ruleC }} />
-      <div style={{ ...HAIR_V, left: "48%", background: ruleD }} />
-      <div style={{ ...HAIR_V, left: "70%", background: ruleC }} />
-      <div
-        style={{
-          position: "absolute",
-          left: "-10%",
-          top: "28%",
-          width: "130%",
-          height: 1,
-          background: ruleA,
-          transform: "rotate(-14deg)",
-          pointerEvents: "none",
-        }}
-      />
-      <div
-        style={{
-          position: "absolute",
-          left: "-10%",
-          top: "70%",
-          width: "130%",
-          height: 1,
-          background: ruleC,
-          transform: "rotate(11deg)",
-          pointerEvents: "none",
-        }}
-      />
       <Drift
         name="bandA"
         style={{
