@@ -23,6 +23,9 @@ import { useGrokTheme, Image, useEffect, useRef, useState, type CSSProperties, t
  * (teal folds, a cyan ribbon, a peach drop). Silver on color keeps the plates' own palette.
  * A named accent hue-shifts the silk. Day keys those plates onto a paper base.
  * Dark keeps the studio plates. Both follow the device. Not lacquer.
+ * The page ground is that same stage base, full-bleed: day paper, dark
+ * charcoal, graphite the device field. Viewport, host peek, and overscroll
+ * meet the field. Theme white is not a frame around it.
  * No hairline grid.
  * APPEARANCE is not a setup lock. The page follows the opener's device
  * (host light is day, host dark is the charcoal field). A baked night, dark,
@@ -948,6 +951,11 @@ const SILK_VEIL_DAY = "radial-gradient(ellipse 64% 18% at 50% 4%, rgba(255,255,2
 const SILK_DAY_KEY = "contrast(0.22) brightness(1.62) saturate(2.15)";
 /** Cool paper under the day plates, in case a drift edge ever clears them. */
 const SILK_PAPER_DAY = "#f3f7f6";
+/**
+ * Studio charcoal under the dark plates. Sampled from the plate's dark mass
+ * so a peek matches the silk instead of a lighter host or theme base.
+ */
+const SILK_INK_DARK = "#041115";
 const SILK_MASK_RIBBON = "linear-gradient(90deg, rgba(0,0,0,0) 0%, rgba(0,0,0,1) 16%, rgba(0,0,0,1) 84%, rgba(0,0,0,0) 100%)";
 const SILK_MASK_PEACH = "radial-gradient(72% 50% at 32% 74%, rgba(0,0,0,1) 0%, rgba(0,0,0,0) 72%)";
 
@@ -976,7 +984,7 @@ function GraphiteStage({ look }: { look: BillboardLook }): JSX.Element {
   const band = dark ? BAND_DARK : BAND_LIGHT;
   const scrim = dark ? SCRIM_DARK : SCRIM_LIGHT;
   return (
-    <div aria-hidden style={STAGE_FRAME}>
+    <div aria-hidden style={{ ...STAGE_FRAME, background: stageGround(look) }}>
       {stageBlooms(look).map((bloom) => (
         <Drift
           key={bloom.key}
@@ -1053,7 +1061,7 @@ function SilkStage({ look }: { look: BillboardLook }): JSX.Element {
     WebkitMaskImage: SILK_MASK_PEACH,
   };
   return (
-    <div aria-hidden style={{ ...STAGE_FRAME, isolation: "isolate", ...(dark ? {} : { background: SILK_PAPER_DAY }) }}>
+    <div aria-hidden style={{ ...STAGE_FRAME, isolation: "isolate", background: stageGround(look) }}>
       <div
         style={{
           position: "absolute",
@@ -1095,14 +1103,56 @@ function Stage(): JSX.Element {
   return <GraphiteStage look={look} />;
 }
 
+/** Color, or any named accent, is the silk field. Graphite plus silver stays the device field. */
+function silkField(look: BillboardLook): boolean {
+  return look.stage === "color" || look.accent !== "silver";
+}
+
+/**
+ * Ground behind the plates or blooms. Silk day is the paper key. Silk dark
+ * is the studio charcoal. Graphite uses the device base. The page, the stage,
+ * and the document share it, so a gutter cannot flash theme white.
+ */
+function stageGround(look: BillboardLook): string {
+  if (!silkField(look)) return look.bg;
+  return look.dark ? SILK_INK_DARK : SILK_PAPER_DAY;
+}
+
+/**
+ * Paint the canvas document with the stage ground so rubber-band overscroll
+ * matches the field instead of flashing theme white.
+ */
+function useStageDocument(ground: string): void {
+  useEffect(() => {
+    if (typeof document === "undefined") return;
+    const html = document.documentElement;
+    const body = document.body;
+    if (!html || !body) return;
+    const prevHtml = html.style.background;
+    const prevBody = body.style.background;
+    html.style.background = ground;
+    body.style.background = ground;
+    return () => {
+      html.style.background = prevHtml;
+      body.style.background = prevBody;
+    };
+  }, [ground]);
+}
+
 function pageStyle(look: BillboardLook): CSSProperties {
+  const ground = stageGround(look);
   return {
     position: "relative",
     width: "100%",
     maxWidth: "100%",
-    minHeight: "100%",
-    overflowX: "hidden",
-    background: look.bg,
+    // 100% fills a sized host. 100dvh covers a short page when the parent
+    // height is auto and percentage min-height collapses. The stage is
+    // absolute inset 0, so it covers this box.
+    minHeight: "max(100%, 100dvh)",
+    // clip does not force a vertical scrollport, so the column still scrolls
+    // with the document.
+    overflowX: "clip",
+    background: ground,
     color: look.ink,
     fontFamily: look.theme.font.family,
     fontSynthesis: "none",
@@ -1304,6 +1354,7 @@ function MiniLink({ link }: { link: Link }): JSX.Element {
 
 export default function App(): JSX.Element {
   const look = useBillboardLook();
+  useStageDocument(stageGround(look));
   const theme = look.theme;
   const handle = atHandle(HANDLE);
   const hero = splitTrailingEmoji(DISPLAY_NAME);
