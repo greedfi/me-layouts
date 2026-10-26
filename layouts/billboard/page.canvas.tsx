@@ -26,9 +26,11 @@ import { useGrokTheme, Image, useEffect, useRef, useState, type CSSProperties, t
  * Dark keeps the studio plates. Both follow the device. Not lacquer.
  * The page ground is that same stage base, full-bleed on all four sides:
  * day paper, dark charcoal, graphite the device field. The page box is the
- * viewport, not the 500px column, so the plates reach the left and right
- * edges. Viewport, host peek, and overscroll meet the field. Theme white
- * is not a frame around it.
+ * viewport. The column shares that width, inset only by a safe-area margin,
+ * so the stack and the silk read as one field. Viewport, host peek, and
+ * overscroll meet the field. Theme white is not a frame around it.
+ * Link chips are monochrome site icons. The handle stays on the accessible
+ * name, not as a word in the glass.
  * No hairline grid.
  * APPEARANCE is not a setup lock. The page follows the opener's device
  * (host light is day, host dark is the charcoal field). A baked night, dark,
@@ -96,6 +98,8 @@ const bots: readonly Bot[] = [
 
 // Filler replaces this whole array (0–N). Five slots stand in for a new owner:
 // X, GitHub, site, YouTube, LinkedIn. Same keys: __LINKn_LABEL__, __LINKn_HREF__, __LINKn_DISPLAY__.
+// The chip paints an icon from the label and the href host. The words stay
+// on the accessible name (aria-label and title), not in the glass.
 const links: readonly Link[] = [
   {
     label: "__LINK0_LABEL__",
@@ -491,6 +495,8 @@ function GlassPane({
   onBlur,
   contentStyle,
   children,
+  name,
+  frame,
 }: {
   kind: "tile" | "chip";
   href: string;
@@ -499,6 +505,10 @@ function GlassPane({
   onBlur: () => void;
   contentStyle: CSSProperties;
   children: ReactNode;
+  /** Accessible name. Icon chips have no visible words, so this carries the handle. */
+  name?: string;
+  /** Anchor box. Icon chips pass a fixed square so the pill dial becomes a circle. */
+  frame?: CSSProperties;
 }): JSX.Element {
   const look = useBillboardLook();
   const dark = look.dark;
@@ -558,6 +568,8 @@ function GlassPane({
       href={destination.length > 0 ? destination : undefined}
       target={destination.length > 0 ? "_blank" : undefined}
       rel={destination.length > 0 ? "noreferrer" : undefined}
+      aria-label={name}
+      title={name}
       onFocus={onFocus}
       onBlur={(): void => {
         setPressed(false);
@@ -597,6 +609,7 @@ function GlassPane({
         outline: focused ? `2px solid ${look.accentFocus}` : FOCUS_NONE,
         outlineOffset: 3,
         ...hotVars,
+        ...frame,
       }}
     >
       <div aria-hidden style={{ ...LAYER, overflow: "hidden", borderRadius: radius, clipPath: clip }}>
@@ -945,9 +958,9 @@ function stageBlooms(look: BillboardLook): BloomSpec[] {
 
 const STAGE_FRAME: CSSProperties = {
   // Fixed to the viewport. An absolute stage only paints the page box, and
-  // that box shrink-wraps to the 500px column when the host sizes from
-  // content — left and right then stay host ground. Fixed covers the
-  // viewport even when a centered column clips the page.
+  // that box shrink-wraps when the host sizes from content — left and right
+  // then stay host ground. Fixed covers the viewport even when an ancestor
+  // clips the page.
   position: "fixed",
   inset: 0,
   zIndex: 0,
@@ -1180,10 +1193,10 @@ function pageStyle(look: BillboardLook): CSSProperties {
   const ground = stageGround(look);
   return {
     position: "relative",
-    // Definite viewport width. width 100% shrink-wraps to the 500px column
-    // when the host sizes the canvas from its content, and the plates stop
-    // at that column. 100dvw is the viewport. The breakout margins recenter
-    // that box inside a centered max-width ancestor.
+    // Definite viewport width. A percentage width shrink-wraps when the host
+    // sizes the canvas from its content, and the plates would stop at the
+    // column. 100dvw is the viewport. The breakout margins recenter that box
+    // inside a centered max-width ancestor. The column then fills this box.
     width: "100dvw",
     maxWidth: "100dvw",
     minWidth: "100dvw",
@@ -1205,18 +1218,24 @@ function pageStyle(look: BillboardLook): CSSProperties {
   };
 }
 
+/**
+ * The column is the viewport. The side inset is the only gutter: 16px on a
+ * phone (or a larger safe area), opening toward 40px on a desktop so the
+ * glass shadow still clears the edge. A 500px cap left empty silk beside
+ * the stack. Header, tiles, and icon chips share this measure.
+ */
 function bandStyle(): CSSProperties {
   return {
     position: "relative",
     zIndex: 1,
     width: "100%",
-    maxWidth: 500,
+    maxWidth: "100%",
     margin: "0 auto",
     boxSizing: "border-box",
     paddingTop: "max(24px, env(safe-area-inset-top, 0px))",
-    paddingRight: "max(16px, env(safe-area-inset-right, 0px))",
+    paddingRight: "max(clamp(16px, 2.5vw, 40px), env(safe-area-inset-right, 0px))",
     paddingBottom: "max(28px, env(safe-area-inset-bottom, 0px))",
-    paddingLeft: "max(16px, env(safe-area-inset-left, 0px))",
+    paddingLeft: "max(clamp(16px, 2.5vw, 40px), env(safe-area-inset-left, 0px))",
     display: "flex",
     flexDirection: "column",
     alignItems: "stretch",
@@ -1227,19 +1246,193 @@ function bandStyle(): CSSProperties {
 
 const FORE: CSSProperties = { position: "relative", zIndex: 1, minWidth: 0 };
 
-/** Chip copy wraps, then ellipsizes, so a long label stays inside the row. */
-const CHIP_LINE: CSSProperties = {
-  ...FORE,
-  flex: "0 1 auto",
-  maxWidth: "100%",
-  overflow: "hidden",
-  display: "-webkit-box",
-  WebkitBoxOrient: "vertical",
-  WebkitLineClamp: 2,
-  overflowWrap: "anywhere",
-  wordBreak: "break-word",
-  textOverflow: "ellipsis",
+/** Square glass chip. The pill dial turns it into a circle. 44px keeps the touch target. */
+const CHIP_SIZE = 44;
+
+type LinkKind =
+  | "x"
+  | "github"
+  | "instagram"
+  | "youtube"
+  | "linkedin"
+  | "tiktok"
+  | "discord"
+  | "telegram"
+  | "facebook"
+  | "twitch"
+  | "spotify"
+  | "threads"
+  | "bluesky"
+  | "reddit"
+  | "whatsapp"
+  | "email"
+  | "site";
+
+const KIND_NAME: Record<LinkKind, string> = {
+  x: "X",
+  github: "GitHub",
+  instagram: "Instagram",
+  youtube: "YouTube",
+  linkedin: "LinkedIn",
+  tiktok: "TikTok",
+  discord: "Discord",
+  telegram: "Telegram",
+  facebook: "Facebook",
+  twitch: "Twitch",
+  spotify: "Spotify",
+  threads: "Threads",
+  bluesky: "Bluesky",
+  reddit: "Reddit",
+  whatsapp: "WhatsApp",
+  email: "Email",
+  site: "Site",
 };
+
+/** Host first. A label alias covers the same kind when the href is still a token. */
+const HOST_KIND: readonly [string, LinkKind][] = [
+  ["twitter.com", "x"],
+  ["x.com", "x"],
+  ["github.com", "github"],
+  ["instagram.com", "instagram"],
+  ["youtu.be", "youtube"],
+  ["youtube.com", "youtube"],
+  ["linkedin.com", "linkedin"],
+  ["lnkd.in", "linkedin"],
+  ["tiktok.com", "tiktok"],
+  ["discord.gg", "discord"],
+  ["discord.com", "discord"],
+  ["t.me", "telegram"],
+  ["telegram.me", "telegram"],
+  ["telegram.org", "telegram"],
+  ["facebook.com", "facebook"],
+  ["fb.com", "facebook"],
+  ["fb.me", "facebook"],
+  ["twitch.tv", "twitch"],
+  ["spotify.com", "spotify"],
+  ["threads.net", "threads"],
+  ["bsky.app", "bluesky"],
+  ["reddit.com", "reddit"],
+  ["wa.me", "whatsapp"],
+  ["whatsapp.com", "whatsapp"],
+];
+
+const LABEL_KIND: Record<string, LinkKind> = {
+  x: "x",
+  twitter: "x",
+  github: "github",
+  instagram: "instagram",
+  insta: "instagram",
+  ig: "instagram",
+  youtube: "youtube",
+  yt: "youtube",
+  linkedin: "linkedin",
+  tiktok: "tiktok",
+  discord: "discord",
+  telegram: "telegram",
+  facebook: "facebook",
+  fb: "facebook",
+  twitch: "twitch",
+  spotify: "spotify",
+  threads: "threads",
+  bluesky: "bluesky",
+  bsky: "bluesky",
+  reddit: "reddit",
+  whatsapp: "whatsapp",
+  email: "email",
+  mail: "email",
+  site: "site",
+  website: "site",
+  web: "site",
+  homepage: "site",
+  home: "site",
+};
+
+/**
+ * Monochrome marks in one 24 box. currentColor is the glass ink, so the
+ * same path reads on day and dark. Site is the fallback globe.
+ */
+const GLYPH: Record<LinkKind, string> = {
+  x: "M14.35 3.1h2.72l-5.94 6.8 7 9h-5.47l-4.28-5.6-4.9 5.6H1.76l6.36-7.28L1.4 3.1h5.61l3.87 5.12 3.47-5.12zm-1.05 14.7h1.51L6.78 4.72H5.16l8.14 13.08z",
+  github:
+    "M12 2C6.48 2 2 6.58 2 12.26c0 4.52 2.87 8.35 6.84 9.7.5.1.68-.22.68-.49 0-.24-.01-.87-.01-1.71-2.78.62-3.37-1.37-3.37-1.37-.45-1.18-1.11-1.5-1.11-1.5-.91-.64.07-.63.07-.63 1.01.07 1.54 1.06 1.54 1.06.9 1.57 2.36 1.12 2.94.86.09-.67.35-1.12.63-1.38-2.22-.26-4.55-1.14-4.55-5.07 0-1.12.39-2.03 1.03-2.75-.1-.26-.45-1.3.1-2.71 0 0 .84-.27 2.75 1.05a9.36 9.36 0 0 1 5.02 0c1.91-1.32 2.75-1.05 2.75-1.05.55 1.41.2 2.45.1 2.71.64.72 1.03 1.63 1.03 2.75 0 3.94-2.34 4.81-4.57 5.07.36.32.68.95.68 1.91 0 1.38-.01 2.49-.01 2.83 0 .27.18.58.69.48A10.03 10.03 0 0 0 22 12.26C22 6.58 17.52 2 12 2z",
+  instagram:
+    "M12 2.2c2.7 0 3.02.01 4.08.06 2.7.12 3.95 1.4 4.07 4.08.05 1.06.06 1.38.06 4.08s-.01 3.02-.06 4.08c-.12 2.67-1.38 3.95-4.07 4.07-1.06.05-1.38.06-4.08.06s-3.02-.01-4.08-.06c-2.7-.12-3.95-1.4-4.07-4.07C3.8 13.62 3.79 13.3 3.79 10.6s.01-3.02.06-4.08c.12-2.68 1.37-3.96 4.07-4.08C8.98 2.21 9.3 2.2 12 2.2zm0 1.8c-2.65 0-2.96.01-4 .06-1.9.08-2.78.99-2.86 2.88-.05 1.04-.06 1.35-.06 4.02s.01 2.98.06 4.02c.08 1.88.96 2.79 2.86 2.87 1.04.05 1.35.06 4 .06s2.96-.01 4-.06c1.9-.08 2.78-.99 2.86-2.87.05-1.04.06-1.35.06-4.02s-.01-2.98-.06-4.02c-.08-1.89-.96-2.8-2.86-2.88-1.04-.05-1.35-.06-4-.06zm0 3.07a5.13 5.13 0 1 1 0 10.26 5.13 5.13 0 0 1 0-10.26zm0 1.8a3.33 3.33 0 1 0 0 6.66 3.33 3.33 0 0 0 0-6.66zm5.34-2.16a1.2 1.2 0 1 1 0 2.4 1.2 1.2 0 0 1 0-2.4z",
+  youtube:
+    "M23.5 6.19a3.02 3.02 0 0 0-2.12-2.14C19.5 3.55 12 3.55 12 3.55s-7.5 0-9.38.5A3.02 3.02 0 0 0 .5 6.19 31.7 31.7 0 0 0 0 12a31.7 31.7 0 0 0 .5 5.81 3.02 3.02 0 0 0 2.12 2.14c1.88.5 9.38.5 9.38.5s7.5 0 9.38-.5a3.02 3.02 0 0 0 2.12-2.14A31.7 31.7 0 0 0 24 12a31.7 31.7 0 0 0-.5-5.81zM9.75 15.57V8.43L15.84 12l-6.09 3.57z",
+  linkedin:
+    "M4.98 3.5A2.5 2.5 0 1 1 2.5 1a2.5 2.5 0 0 1 2.48 2.5zM.5 8.4h4.5V23H.5V8.4zM9 8.4h4.3v2h.06c.6-1.14 2.07-2.34 4.26-2.34 4.56 0 5.4 3 5.4 6.9V23H18.5v-7.7c0-1.84-.03-4.2-2.56-4.2-2.56 0-2.95 2-2.95 4.06V23H9V8.4z",
+  tiktok:
+    "M14.2 2h-2.7v12.2a2.55 2.55 0 1 1-2.2-2.52v-2.7a5.25 5.25 0 1 0 4.9 5.22V8.05a6.4 6.4 0 0 0 3.7 1.18V6.5a3.7 3.7 0 0 1-3.7-3.5V2z",
+  discord:
+    "M19.27 5.33A16.2 16.2 0 0 0 15.3 4.1l-.3.6a14.7 14.7 0 0 0-4.4 0l-.3-.6a16.1 16.1 0 0 0-3.96 1.23C3.1 8.9 2.4 12.4 2.7 15.85A16.4 16.4 0 0 0 7.6 18.3l.9-1.5a10.4 10.4 0 0 1-1.5-.72l.35-.27c3.2 1.48 6.7 1.48 9.86 0l.36.27c-.48.28-.98.52-1.5.72l.9 1.5a16.3 16.3 0 0 0 4.9-2.45c.4-4.2-.68-7.66-2.9-10.52zM9.1 14.1c-.85 0-1.55-.8-1.55-1.78s.68-1.78 1.55-1.78 1.57.8 1.55 1.78c0 .98-.68 1.78-1.55 1.78zm5.8 0c-.85 0-1.55-.8-1.55-1.78s.68-1.78 1.55-1.78 1.57.8 1.55 1.78c0 .98-.68 1.78-1.55 1.78z",
+  telegram:
+    "M20.7 4.3 3.4 10.9c-1.18.46-1.17 1.1-.2 1.39l4.45 1.39 10.3-6.5c.49-.3.93-.13.57.19l-8.34 7.52-.32 4.55c.46 0 .66-.21.92-.46l2.2-2.13 4.58 3.38c.84.46 1.45.22 1.66-.78l2.95-13.9c.28-1.12-.4-1.63-1.27-1.32z",
+  facebook:
+    "M14.2 8.4V6.7c0-.5.33-.61.56-.61h1.5V3.6l-2.1-.01c-2.15 0-2.64 1.62-2.64 2.66v2.15H9.2V11h2.32v9h2.7v-9h2.05l.28-2.6h-2.35z",
+  twitch:
+    "M5.2 2.2 3 4.5v13.2h4.1V22l3.4-3.3h2.7l5.8-5.8V2.2H5.2zm12.4 9.3-2.7 2.7H12l-2.4 2.4v-2.4H6.4V3.7h11.2v7.8zM11.2 6.2H9.8v4.4h1.4V6.2zm3.8 0h-1.4v4.4h1.4V6.2z",
+  spotify:
+    "M12 1.8a10.2 10.2 0 1 0 0 20.4 10.2 10.2 0 0 0 0-20.4zm4.67 14.7a.64.64 0 0 1-.88.21c-2.4-1.47-5.43-1.8-9-.98a.64.64 0 1 1-.37-1.23c3.9-.9 7.24-.51 9.93 1.13.3.18.4.58.32.87zm1.22-2.8a.8.8 0 0 1-1.1.26c-2.75-1.69-6.95-2.18-10.2-1.19a.8.8 0 0 1-.46-1.53c3.72-1.13 8.34-.58 11.5 1.36.36.22.48.7.26 1.1zm.1-2.9C15.1 8.9 9.4 8.7 6.2 9.7a.96.96 0 0 1-.56-1.84c3.7-1.12 9.85-.9 13.74 1.45a.96.96 0 0 1-1.2 1.5z",
+  threads:
+    "M12.9 11.2c-.1-2.2-1.3-3.5-3.3-3.5-2.3 0-3.9 1.8-3.9 4.6 0 2.7 1.5 4.4 3.9 4.4 1.6 0 2.8-.6 3.5-1.7.3.9.4 1.6.4 2.2 0 2.3-1.5 4.3-4.6 4.3-3.6 0-5.7-2.4-5.7-6.6V8.2c0-4.1 2.2-6.5 6-6.5 2.4 0 4.2.8 5.4 2.1l-1.3 1.5c-.9-1-2.2-1.6-4-1.6-2.5 0-4 1.6-4 4.4v4.6c0 3 1.4 4.6 3.8 4.6 1.9 0 3-.9 3-2.6 0-.5-.1-1-.2-1.4-.7.8-1.8 1.3-3.1 1.3-2 0-3.3-1.3-3.3-3.4 0-2.2 1.4-3.6 3.4-3.6 1.5 0 2.5.8 2.7 2.1h2.2c-.1-.4-.2-1-.2-1.5z",
+  bluesky:
+    "M12 11.4c1.3-2.5 3.4-7.2 5.7-9.2 1.6-1.4 4.3-1.2 4.3 2.4 0 .7-.4 5.8-1.6 6.6-1.5 1-2.2.2-2.2.2 1.6 2.8 2.6 4.9 1.5 6.6-1.3 2-3.4 1.5-5.2-.2-1.4-1.3-2.1-2.8-2.5-3.6-.4.8-1.1 2.3-2.5 3.6-1.8 1.7-3.9 2.2-5.2.2-1.1-1.7-.1-3.8 1.5-6.6 0 0-.7.8-2.2-.2C2.4 10.4 2 5.3 2 4.6c0-3.6 2.7-3.8 4.3-2.4C8.6 4.2 10.7 8.9 12 11.4z",
+  reddit:
+    "M14.5 3.2a1.35 1.35 0 1 0 1.2 2.05l2.55.54a1.15 1.15 0 1 0 .12-.86l-2.9-.62a1.35 1.35 0 0 0-.97-1.11zM12 6.1c-3.6 0-6.6 2.4-6.6 5.4 0 1.7.8 3.2 2.1 4.2-.2.7-.5 1.6-.7 2.1 0 .05 1.3-.2 2.5-1 .8.3 1.7.4 2.7.4s1.9-.1 2.7-.4c1.2.8 2.5 1.05 2.5 1-.2-.5-.5-1.4-.7-2.1 1.3-1 2.1-2.5 2.1-4.2 0-3-3-5.4-6.6-5.4zm-3.2 4.3a1.15 1.15 0 1 1 0 2.3 1.15 1.15 0 0 1 0-2.3zm6.5 0a1.15 1.15 0 1 1 0 2.3 1.15 1.15 0 0 1 0-2.3zm-5.7 3.5c.4.4 1.3.8 2.4.8s2-.4 2.4-.8c.2-.2.5-.2.7 0 .2.2.2.5 0 .7-.6.6-1.8 1-3.1 1s-2.5-.4-3.1-1c-.2-.2-.2-.5 0-.7.2-.2.5-.2.7 0z",
+  whatsapp:
+    "M12.04 2C6.58 2 2.15 6.4 2.15 11.83c0 1.74.46 3.44 1.34 4.94L2 22l5.39-1.41a10 10 0 0 0 4.65 1.18h.01c5.46 0 9.89-4.4 9.89-9.83C21.94 6.4 17.5 2 12.04 2zm5.76 13.9c-.24.68-1.4 1.3-1.93 1.38-.5.08-1.12.11-1.81-.11-.41-.14-.95-.31-1.63-.6-2.86-1.24-4.72-4.12-4.86-4.31-.14-.19-1.16-1.54-1.16-2.94s.73-2.08 1-2.37c.24-.27.64-.4 1.02-.4h.73c.23 0 .54-.09.85.64.32.76 1.08 2.62 1.17 2.81.1.19.16.41.03.66-.13.24-.2.4-.39.61-.19.22-.4.48-.57.65-.19.19-.39.4-.17.77.22.38 1 1.64 2.14 2.66 1.47 1.31 2.71 1.72 3.1 1.91.38.19.61.16.83-.1.23-.26.96-1.12 1.22-1.5.26-.39.51-.32.85-.19.35.13 2.2 1.04 2.58 1.23.38.19.63.28.72.44.1.16.1.94-.14 1.62z",
+  email:
+    "M3.2 6.2h17.6c.7 0 1.2.5 1.2 1.2v9.2c0 .7-.5 1.2-1.2 1.2H3.2c-.7 0-1.2-.5-1.2-1.2V7.4c0-.7.5-1.2 1.2-1.2zm.4 1.6 8.4 5.5 8.4-5.5H3.6zm0 2.1v6.5h16.8V9.9l-7.7 5.1c-.3.2-.8.2-1.1 0L3.6 9.9z",
+  site: "M12 2.2a9.8 9.8 0 1 0 0 19.6 9.8 9.8 0 0 0 0-19.6zm0 1.7c.9 0 2.2.9 3.1 3.1H8.9C9.8 4.8 11.1 3.9 12 3.9zm-4.7 4.7h9.4c.2.8.3 1.7.3 2.6s-.1 1.8-.3 2.6H7.3A11 11 0 0 1 7 11.2c0-.9.1-1.8.3-2.6zM12 20.1c-.9 0-2.2-.9-3.1-3.1h6.2c-.9 2.2-2.2 3.1-3.1 3.1zM4.1 12.8a8.1 8.1 0 0 1 0-3.2h2.5a13.4 13.4 0 0 0 0 3.2H4.1zm13.3 0a13.4 13.4 0 0 0 0-3.2h2.5a8.1 8.1 0 0 1 0 3.2h-2.5z",
+};
+
+function linkHost(href: string): string {
+  const trimmed = href.trim();
+  if (trimmed.length === 0 || trimmed.startsWith("__")) return "";
+  const withoutScheme = trimmed.replace(/^[a-z][a-z0-9+.-]*:\/\//i, "");
+  const hostPort = withoutScheme.split(/[/?#]/)[0] ?? "";
+  return (hostPort.split(":")[0] ?? "").replace(/^www\./i, "").toLowerCase();
+}
+
+function linkKind(link: Link): LinkKind {
+  const href = filled(link.href);
+  if (/^mailto:/i.test(href)) return "email";
+  const host = linkHost(href);
+  if (host.length > 0) {
+    for (let i = 0; i < HOST_KIND.length; i++) {
+      const domain = HOST_KIND[i][0];
+      const kind = HOST_KIND[i][1];
+      if (host === domain || host.endsWith(`.${domain}`)) return kind;
+    }
+  }
+  const words = `${filled(link.label)} ${filled(link.display)}`.toLowerCase().split(/[^a-z0-9]+/);
+  for (let i = 0; i < words.length; i++) {
+    const kind = LABEL_KIND[words[i] ?? ""];
+    if (kind) return kind;
+  }
+  return "site";
+}
+
+/** Kind plus the handle, for the chip's aria-label and title. */
+function linkName(link: Link, kind: LinkKind): string {
+  const kindName = KIND_NAME[kind];
+  const label = filled(link.label);
+  const display = filled(link.display);
+  const href = filled(link.href);
+  const handle = display.length > 0 ? display : label.length > 0 && LABEL_KIND[label.toLowerCase().replace(/[^a-z0-9]+/g, "")] !== kind ? label : "";
+  if (handle.length > 0 && handle.toLowerCase() !== kindName.toLowerCase()) return `${kindName}, ${handle}`;
+  if (label.length > 0) return kindName;
+  if (href.length > 0) return `${kindName}, ${href}`;
+  return kindName;
+}
+
+function LinkGlyph({ kind }: { kind: LinkKind }): JSX.Element {
+  return (
+    <svg aria-hidden width={20} height={20} viewBox="0 0 24 24" style={{ display: "block", flexShrink: 0 }}>
+      <path fill="currentColor" d={GLYPH[kind]} />
+    </svg>
+  );
+}
 
 function InstallTile({ bot }: { bot: Bot }): JSX.Element {
   const look = useBillboardLook();
@@ -1329,68 +1522,38 @@ function InstallTile({ bot }: { bot: Bot }): JSX.Element {
 
 function MiniLink({ link }: { link: Link }): JSX.Element {
   const look = useBillboardLook();
-  const theme = look.theme;
   const ring = useFocusRing();
   const href = filled(link.href);
-  const display = filled(link.display);
-  const givenLabel = filled(link.label);
-  const label = givenLabel.length > 0 ? givenLabel : display.length > 0 ? "" : href;
-  const showDisplay = display.length > 0 && display !== label;
+  const kind = linkKind(link);
+  const name = linkName(link, kind);
   return (
     <GlassPane
       kind="chip"
       href={href}
+      name={name}
       focused={ring.focused}
       onFocus={ring.onFocus}
       onBlur={ring.onBlur}
+      frame={{
+        width: CHIP_SIZE,
+        height: CHIP_SIZE,
+        minWidth: CHIP_SIZE,
+        minHeight: CHIP_SIZE,
+        flex: "0 0 auto",
+        alignItems: "center",
+        justifyContent: "center",
+      }}
       contentStyle={{
         display: "flex",
         alignItems: "center",
-        gap: 6,
-        minHeight: 44,
-        maxWidth: "100%",
-        minWidth: 0,
+        justifyContent: "center",
+        width: CHIP_SIZE,
+        height: CHIP_SIZE,
         boxSizing: "border-box",
-        overflow: "hidden",
-        padding: "0 14px",
-        ...theme.font.subtext,
-        fontFamily: theme.font.family,
-        letterSpacing: "0",
+        padding: 0,
         color: look.glassInk,
       }}
-      children={[
-        label.length > 0 ? (
-          <span
-            key="label"
-            style={{
-              ...CHIP_LINE,
-              fontFamily: theme.font.family,
-              color: look.glassInk,
-              fontWeight: theme.weight.semibold,
-              letterSpacing: "0",
-              textShadow: "var(--bb-ink-shadow)",
-              transition: `text-shadow ${MOTION}`,
-            }}
-          >
-            {label}
-          </span>
-        ) : null,
-        showDisplay ? (
-          <span
-            key="display"
-            style={{
-              ...CHIP_LINE,
-              fontFamily: theme.font.family,
-              color: look.glassInk,
-              letterSpacing: "0",
-              textShadow: "var(--bb-ink-shadow)",
-              transition: `text-shadow ${MOTION}`,
-            }}
-          >
-            {display}
-          </span>
-        ) : null,
-      ]}
+      children={<LinkGlyph kind={kind} />}
     />
   );
 }
@@ -1522,7 +1685,7 @@ export default function App(): JSX.Element {
               justifyContent: "center",
               alignItems: "center",
               alignContent: "center",
-              gap: 8,
+              gap: 10,
               width: "100%",
               maxWidth: "100%",
               minWidth: 0,
