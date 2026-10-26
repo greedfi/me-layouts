@@ -223,7 +223,8 @@ body {
   min-width: 0;
   overflow-wrap: anywhere;
   word-break: break-word;
-  color: var(--bb-ink);
+  /* Tile title ink. Body ink (--bb-ink) stays on the handle, bio, and footer. */
+  color: var(--bb-glass-ink);
 }
 
 .hero-emoji {
