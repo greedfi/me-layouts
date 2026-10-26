@@ -3,8 +3,21 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-    <!-- Tab title comes from PAGE_TITLE in billboard.js. -->
+    <!-- unfurl -->
+    <!-- Tab title stays empty until PAGE_TITLE is filled. Card title and image are the same user's. -->
     <title></title>
+    <meta name="description" content="__BIO__" />
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="__PAGE_TITLE__" />
+    <meta property="og:description" content="__BIO__" />
+    <meta property="og:image" content="__OG_IMAGE_URL__" />
+    <meta property="og:image:alt" content="__PAGE_TITLE__" />
+    <meta name="twitter:card" content="summary" />
+    <meta name="twitter:title" content="__PAGE_TITLE__" />
+    <meta name="twitter:description" content="__BIO__" />
+    <meta name="twitter:image" content="__OG_IMAGE_URL__" />
+    <meta name="twitter:image:alt" content="__PAGE_TITLE__" />
+    <!-- /unfurl -->
     <script>
       document.documentElement.dataset.appearance = matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "day";
     </script>
