@@ -17,6 +17,8 @@ import { useGrokTheme, Image, useEffect, useRef, useState, type CSSProperties, t
  * day (unset follows the viewer; a dark viewer stays on the charcoal field).
  * STAGE is graphite or color (unset stays graphite). Night is a deeper, cooler
  * black. Color is muted blooms under the same glass, not lacquer.
+ * ACCENT is silver, rose, sage, violet, or amber (unset stays silver).
+ * Silver keeps the current focus ring, hover wash, and chip tint.
  * No photographed frost plates.
  * Replace the constants and the bots/links arrays. Leave the JSX alone. See README.md.
  *
@@ -36,6 +38,8 @@ const FOOTER = "__FOOTER__";
 const APPEARANCE = "__APPEARANCE__";
 /** Stage palette: graphite or color. colour aliases color. Unset stays graphite. */
 const STAGE = "__STAGE__";
+/** Owner accent: silver, rose, sage, violet, or amber. Unset stays silver. */
+const ACCENT = "__ACCENT__";
 
 type Bot = {
   name: string;
@@ -199,10 +203,28 @@ const LENS_DROP_DARK = "drop-shadow(0 12px 2px rgba(0,0,0,0.4))";
 const LENS_DROP_HOVER_DARK = "drop-shadow(0 7px 2px rgba(0,0,0,0.5))";
 const LENS_DROP_LIGHT = "drop-shadow(0 12px 2px rgba(16,16,20,0.24))";
 const LENS_DROP_HOVER_LIGHT = "drop-shadow(0 7px 2px rgba(16,16,20,0.32))";
-/** Focus ring. Silver on dark, graphite on light. Never the host accent. */
+/** Focus ring. Silver uses silver on dark and graphite on light. Never the host accent. */
 const SILVER = "#f4f5f7";
 const GRAPHITE = "#121214";
 const FOCUS_NONE = "none";
+type AccentName = "silver" | "rose" | "sage" | "violet" | "amber";
+/**
+ * Named accents only. Pale on dark glass, deep on day paper.
+ * Silver is not here — it keeps SILVER / GRAPHITE and the current washes.
+ */
+const ACCENT_FOCUS = {
+  rose: { dark: "#e8cfd4", light: "#73424c" },
+  sage: { dark: "#d0dccf", light: "#3c5142" },
+  violet: { dark: "#d8d0e6", light: "#4a3f64" },
+  amber: { dark: "#e8d8b8", light: "#6a5230" },
+} as const;
+/** Chip tint in the same opacity band as TINT_GRAD. Silver keeps that gradient. */
+const ACCENT_CHIP = {
+  rose: { dark: "rgba(92, 48, 58, 0.70)", light: "rgba(255, 228, 232, 0.62)" },
+  sage: { dark: "rgba(44, 62, 50, 0.70)", light: "rgba(228, 240, 230, 0.62)" },
+  violet: { dark: "rgba(58, 48, 82, 0.70)", light: "rgba(236, 230, 248, 0.62)" },
+  amber: { dark: "rgba(82, 62, 36, 0.70)", light: "rgba(248, 236, 214, 0.62)" },
+} as const;
 /** liqui button: transition-[transform,box-shadow] duration-150. */
 const MOTION = "150ms ease";
 const TYPE_MOTION = `text-shadow ${MOTION}, filter ${MOTION}`;
@@ -566,7 +588,7 @@ function GlassPane({
         transition: `transform ${MOTION}, box-shadow ${MOTION}`,
         boxShadow: hovered && !pressed ? (dark ? ELEVATED_HOVER_DARK : ELEVATED_HOVER_LIGHT) : dark ? ELEVATED_DARK : ELEVATED_LIGHT,
         WebkitTapHighlightColor: CLEAR,
-        outline: focused ? `2px solid ${dark ? SILVER : GRAPHITE}` : FOCUS_NONE,
+        outline: focused ? `2px solid ${look.accentFocus}` : FOCUS_NONE,
         outlineOffset: 3,
         ...hotVars,
         ...SQUIRCLE,
@@ -581,7 +603,7 @@ function GlassPane({
           style={{
             ...LAYER,
             zIndex: 1,
-            background: dark ? TINT_GRAD_DARK : TINT_GRAD_LIGHT,
+            background: kind === "chip" ? look.accentChip : dark ? TINT_GRAD_DARK : TINT_GRAD_LIGHT,
             opacity: tintOpacity,
           }}
         />
@@ -644,7 +666,7 @@ function GlassPane({
           </svg>
         ) : null}
       </div>
-      <div aria-hidden style={{ ...LAYER, zIndex: 3, background: HOVER_WASH, opacity: hovered ? 1 : 0, transition: `opacity ${MOTION}` }} />
+      <div aria-hidden style={{ ...LAYER, zIndex: 3, background: look.accentWash, opacity: hovered ? 1 : 0, transition: `opacity ${MOTION}` }} />
       <div style={{ position: "relative", zIndex: 4, boxSizing: "border-box", minWidth: 0, ...contentStyle }}>{children}</div>
     </a>
   );
@@ -719,6 +741,9 @@ type BillboardLook = {
   ink: string;
   bg: string;
   well: string;
+  accentFocus: string;
+  accentWash: string;
+  accentChip: string;
 };
 
 function resolveAppearance(raw: string, host: "light" | "dark"): Appearance {
@@ -735,10 +760,34 @@ function resolveStage(raw: string): StageMood {
   return "graphite";
 }
 
+function resolveAccent(raw: string): AccentName {
+  const value = raw.trim().toLowerCase();
+  if (value === "rose" || value === "sage" || value === "violet" || value === "amber") return value;
+  return "silver";
+}
+
+/** Silver returns the shipped ring, wash, and chip tint. Other names swap those three. */
+function accentSpots(name: AccentName, dark: boolean): { focus: string; wash: string; chip: string } {
+  if (name === "silver") {
+    return {
+      focus: dark ? SILVER : GRAPHITE,
+      wash: HOVER_WASH,
+      chip: dark ? TINT_GRAD_DARK : TINT_GRAD_LIGHT,
+    };
+  }
+  const side = dark ? "dark" : "light";
+  const focus = ACCENT_FOCUS[name][side];
+  return {
+    focus,
+    wash: `color-mix(in srgb, ${focus} 13%, ${CLEAR})`,
+    chip: ACCENT_CHIP[name][side],
+  };
+}
+
 /**
- * Fill tokens win when they name a mode. Anything else, including the
- * unreplaced token, follows the viewer and stays on graphite — so a page
- * that never set these still looks like the shipped charcoal field.
+ * Fill tokens win when they name a mode. Anything else, including an
+ * unreplaced token, follows the viewer, stays on graphite, and stays silver —
+ * so a page that never set these still looks like the shipped charcoal field.
  */
 function useBillboardLook(): BillboardLook {
   const theme = useGrokTheme();
@@ -750,7 +799,19 @@ function useBillboardLook(): BillboardLook {
   const ink = matched ? theme.text.primary : dark ? SILVER : GRAPHITE;
   const bg = appearance === "night" ? NIGHT_FIELD : appearance === "day" ? (hostDark ? DAY_FIELD : theme.bg.base) : hostDark ? theme.bg.base : DARK_FIELD;
   const well = matched ? theme.fill.secondary : dark ? FORCED_WELL_DARK : FORCED_WELL_LIGHT;
-  return { theme, appearance, stage, dark, ink, bg, well };
+  const spots = accentSpots(resolveAccent(ACCENT), dark);
+  return {
+    theme,
+    appearance,
+    stage,
+    dark,
+    ink,
+    bg,
+    well,
+    accentFocus: spots.focus,
+    accentWash: spots.wash,
+    accentChip: spots.chip,
+  };
 }
 
 function useFocusRing(): { focused: boolean; onFocus: () => void; onBlur: () => void } {
