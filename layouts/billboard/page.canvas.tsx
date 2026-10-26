@@ -8,11 +8,14 @@ import { useGrokTheme, Image, useEffect, useRef, useState, type CSSProperties, t
  * Avatar and icons stay solid. The whole tile is the install link.
  * A trailing emoji run on the display name sits beside the hero at half size.
  * Long names, dense chips, and blank fields stay inside the column for any owner.
- * Type is the tile-body see-through: silver at 0.55 on night and dark, graphite
- * at 0.55 on day, plus the now-playing legibility shadow. One face for the hero,
- * the handle, the bio, tile titles, descriptions, and chips. No forced uppercase.
+ * Type is one see-through face: silver at 0.82 on night and dark, graphite at
+ * 0.82 on day, plus the now-playing legibility shadow. The field still shows
+ * through the strokes. Same face for the hero, the handle, the bio, tile titles,
+ * descriptions, chips, and the footer. No forced uppercase, no wide tracking.
  * The display name is those letterforms only — no pane, tile, or pill behind it.
- * Tiles and chips lift, wash, and press.
+ * Weight and size carry the hierarchy: name, then handle, then bio.
+ * Tiles and chips lift, wash, and press. The rim is one rounded rect: a soft
+ * specular lip and a milky body, not a second corner stroke.
  * The stage is an animated lumen field: slow blooms and a drifting sheen over
  * hard rules, so the glass has an edge to bend. Graphite blooms stay neutral.
  * Color is muted blooms under the same glass, not the loud liquid ribbons, not lacquer.
@@ -116,38 +119,35 @@ const AVATAR_SIZE = 60;
  * Bezel stays inside the corner radius. A bezel wider than the radius cusps
  * the rim and reads as a stepped second corner.
  */
-const TILE_DIAL = { blur: 1, refraction: 110, bezel: 12, radius: 20, frost: 0.5, saturation: 1.7, specular: 0.9 };
-const CHIP_DIAL = { blur: 1, refraction: 45, bezel: 11, radius: 999, frost: 0.4, saturation: 1.65, specular: 0.8 };
+const TILE_DIAL = { blur: 1, refraction: 110, bezel: 15, radius: 20, frost: 0.58, saturation: 1.75, specular: 0.95 };
+const CHIP_DIAL = { blur: 1, refraction: 52, bezel: 13, radius: 999, frost: 0.5, saturation: 1.7, specular: 0.88 };
 
-const TINT_GRAD_DARK = "linear-gradient(135deg, rgba(30,32,46,0.62), rgba(18,20,32,0.40))";
-const TINT_GRAD_LIGHT = "linear-gradient(135deg, rgba(255,255,255,0.48), rgba(255,255,255,0.14))";
+/**
+ * Top-lit volume. White milk at the crown, a clearer mid, a darker foot.
+ * A flat grey slab reads as glassmorphism; this lets the stage bend through.
+ */
+const TINT_GRAD_DARK = "linear-gradient(180deg, rgba(255,255,255,0.18) 0%, rgba(36,38,48,0.18) 38%, rgba(8,10,16,0.50) 100%)";
+const TINT_GRAD_LIGHT = "linear-gradient(180deg, rgba(255,255,255,0.58) 0%, rgba(255,255,255,0.26) 42%, rgba(255,255,255,0.12) 100%)";
+const MILK_DARK = "radial-gradient(92% 78% at 50% 0%, rgba(255,255,255,0.22), rgba(255,255,255,0.06) 44%, rgba(255,255,255,0) 72%)";
+const MILK_LIGHT = "radial-gradient(92% 78% at 50% 0%, rgba(255,255,255,0.72), rgba(255,255,255,0.16) 46%, rgba(255,255,255,0) 74%)";
 const CLEAR = "rgba(0,0,0,0)";
 const WHITE = "rgba(255,255,255,1)";
 /** Faint liqui highlight wash. White at 13% sits in the asked 10–15% band. */
 const HOVER_WASH = `color-mix(in srgb, ${WHITE} 13%, ${CLEAR})`;
 
 /**
- * Concentric rim only. Offset inset shadows draw a second arc at the corner
- * and read as a stepped double stroke.
+ * Concentric falloff only. A 1px ring doubles the baked specular, and an
+ * offset inset draws a second arc at the corner. The lip lives in the map.
  */
-const SHINE_DARK = [
-  "inset 0 1px 0 rgba(255,255,255,0.92)",
-  "inset 0 0 0 1px rgba(255,255,255,0.38)",
-  "inset 0 -1px 0 rgba(255,255,255,0.14)",
-  "inset 0 0 3px rgba(0,0,0,0.55)",
-].join(", ");
-const SHINE_LIGHT = [
-  "inset 0 1px 0 rgba(255,255,255,0.98)",
-  "inset 0 0 0 1px rgba(255,255,255,0.72)",
-  "inset 0 -1px 0 rgba(255,255,255,0.40)",
-  "inset 0 0 2px rgba(0,0,0,0.22)",
-].join(", ");
+const SHINE_DARK = "inset 0 0 28px rgba(255,255,255,0.12)";
+const SHINE_LIGHT = "inset 0 0 20px rgba(255,255,255,0.42)";
 const ELEVATED_DARK = "0 28px 64px rgba(0,0,5,0.62), 0 4px 14px rgba(0,0,5,0.38)";
 const ELEVATED_LIGHT = "0 24px 60px rgba(16,16,20,0.28), 0 4px 14px rgba(16,16,20,0.14)";
 const ELEVATED_HOVER_DARK = "0 40px 78px rgba(0,0,5,0.76), 0 14px 28px rgba(0,0,5,0.5)";
 const ELEVATED_HOVER_LIGHT = "0 34px 70px rgba(16,16,20,0.36), 0 12px 24px rgba(16,16,20,0.2)";
 const SHEEN =
-  "linear-gradient(128deg, rgba(255,255,255,0.82) 0%, rgba(255,255,255,0) 16%, rgba(255,255,255,0) 64%, rgba(255,255,255,0.62) 100%)";
+  "linear-gradient(118deg, rgba(255,255,255,0.50) 0%, rgba(255,255,255,0.08) 20%, rgba(255,255,255,0) 48%, rgba(255,255,255,0) 72%, rgba(255,255,255,0.26) 100%)";
+const SHEEN_BLUR = "blur(5px)";
 const AVATAR_RING_DARK = "0 0 0 2px rgba(255,255,255,0.88), 0 10px 24px rgba(0,0,0,0.45)";
 const AVATAR_RING_LIGHT = "0 0 0 2px rgba(16,16,20,0.88), 0 10px 24px rgba(16,16,20,0.16)";
 const ICON_RING_DARK = "inset 0 0 0 1px rgba(255,255,255,0.28)";
@@ -201,11 +201,13 @@ const SOFT_SHADOW_HOVER_LIGHT = "0.025em 0.025em 0.04em rgba(255,255,255,0.9)";
 const SILVER = "#f4f5f7";
 const GRAPHITE = "#121214";
 /**
- * Tile-body see-through. 0.55 of silver on night/dark, 0.55 of graphite on day.
- * Not theme.text.primary — that ink stays near-black and stamps the glass.
+ * One see-through ink. 0.82 of silver on night/dark, 0.82 of graphite on day.
+ * 0.55 went ghost-faint on graphite; opaque theme.text.primary stamps the glass.
+ * The same mix is the hero, the handle, the bio, tiles, chips, and the footer.
  */
-const SEE_DARK = `color-mix(in srgb, ${SILVER} 55%, ${CLEAR})`;
-const SEE_DAY = `color-mix(in srgb, ${GRAPHITE} 55%, ${CLEAR})`;
+const SEE_MIX = "82%";
+const SEE_DARK = `color-mix(in srgb, ${SILVER} ${SEE_MIX}, ${CLEAR})`;
+const SEE_DAY = `color-mix(in srgb, ${GRAPHITE} ${SEE_MIX}, ${CLEAR})`;
 const FOCUS_NONE = "none";
 type AccentName = "silver" | "rose" | "sage" | "violet" | "amber" | "teal";
 /**
@@ -250,7 +252,6 @@ type GlassShot = {
 const LUT_SIZE = 128;
 const LIGHT_SPREAD = 1.08;
 const DIFFUSE_SPREAD = LIGHT_SPREAD * 0.65;
-const SIDE_SPREAD = 0.98;
 
 type SurfaceLUTs = { mag: Float32Array; slope: Float32Array };
 let squircleLut: SurfaceLUTs | null = null;
@@ -341,7 +342,9 @@ function glassImages(
     const w = Math.ceil(fullW * scale);
     const h = Math.ceil(fullH * scale);
     const radius = fullRadius * scale;
-    const bezel = Math.max(1, fullBezel * scale);
+    // Stay inside the corner. A bezel past the radius pinches a second edge.
+    const safeBezel = Math.min(fullBezel, Math.max(1, fullRadius * 0.85));
+    const bezel = Math.max(1, safeBezel * scale);
     const canvas = document.createElement("canvas");
     canvas.width = w;
     canvas.height = h;
@@ -391,8 +394,10 @@ function glassImages(
     const darkImage = darkCtx.createImageData(specW, specH);
     const cosLight = Math.cos(LIGHT_SPREAD);
     const cosDiffuse = Math.cos(DIFFUSE_SPREAD);
-    const cosSide = Math.cos(SIDE_SPREAD);
-    const reach = 4.5 + fullBezel * 0.15;
+    // Highlight feathers inward across the bezel on this same outline.
+    // No second dark stroke — that read as a stepped rim.
+    const lip = Math.max(8, safeBezel * 0.8);
+    const reach = 7 + safeBezel * 0.4;
     const compose = (
       out: Uint8ClampedArray,
       i: number,
@@ -421,21 +426,20 @@ function glassImages(
         surfaceField(px, py, specBx, specBy, specR, field);
         const sd = field.sd;
         if (sd > 1 || sd < -(reach + 1)) continue;
-        const coverage = sat(0.5 - sd);
+        const coverage = sat(0.55 - sd);
         const vertical = Math.abs(field.ny);
-        const directional = Math.pow(sat((vertical - cosLight) / (1 - cosLight)), 1.25);
-        const diffuseDir = Math.pow(sat((vertical - cosDiffuse) / (1 - cosDiffuse)), 1.25);
-        const stroke = sat(sd + 1.4) * sat(0.5 - sd);
-        let specAmount = directional * stroke;
-        specAmount = specAmount / (1 + 0.5 * (1 - specAmount));
+        const directional = Math.pow(sat((vertical - cosLight) / (1 - cosLight)), 1.15);
+        const diffuseDir = Math.pow(sat((vertical - cosDiffuse) / (1 - cosDiffuse)), 1.15);
+        const into = sat(-sd / lip);
+        // One lip. A dark hairline beside this feather reads as a second stroke.
+        const feather = sat(0.65 - sd) * Math.pow(1 - into, 1.7);
+        let specAmount = directional * feather;
+        specAmount = specAmount / (1 + 0.35 * (1 - specAmount));
         const glow = 1 - sat(-sd / reach);
-        const diffuse = diffuseDir * 0.18 * glow * glow * coverage;
-        const wL = sat((field.nx - cosSide) / (1 - cosSide)) * stroke;
-        const wR = sat((-field.nx - cosSide) / (1 - cosSide)) * stroke;
-        const shadeBase = wL / (1 + 0.4 * (1 - wL)) + wR / (1 + 0.4 * (1 - wR));
+        const diffuse = diffuseDir * 0.34 * glow * glow * coverage;
         const i = (y * specW + x) * 4;
-        compose(lightImage.data, i, specAmount, diffuse, shadeBase, 1, 1, 0.48);
-        compose(darkImage.data, i, specAmount, diffuse, shadeBase, 0.82, 0.4, 0.6);
+        compose(lightImage.data, i, specAmount, diffuse, 0, 1, 0.9, 0);
+        compose(darkImage.data, i, specAmount, diffuse, 0, 0.92, 0.42, 0);
       }
     }
     lightCtx.putImageData(lightImage, 0, 0);
@@ -601,6 +605,7 @@ function GlassPane({
             opacity: tintOpacity,
           }}
         />
+        <div style={{ ...LAYER, zIndex: 1, background: dark ? MILK_DARK : MILK_LIGHT }} />
         {shot ? (
           <div
             style={{
@@ -619,7 +624,8 @@ function GlassPane({
             zIndex: 2,
             background: SHEEN,
             mixBlendMode: "screen",
-            opacity: dark ? 0.92 : 0.45,
+            filter: SHEEN_BLUR,
+            opacity: dark ? 0.72 : 0.4,
           }}
         />
         {shot ? (
@@ -697,9 +703,9 @@ const HERO_EMOJI: CSSProperties = {
   maxWidth: "100%",
 };
 
-function heroEmojiStyle(index: number, hasText: boolean): CSSProperties {
+function heroEmojiStyle(index: number, hasText: boolean, color: string): CSSProperties {
   const marginLeft = index === 0 ? (hasText ? "0.32em" : "0") : "0.16em";
-  return { ...HERO_EMOJI, marginLeft };
+  return { ...HERO_EMOJI, marginLeft, color };
 }
 
 type Appearance = "night" | "dark" | "day";
@@ -1235,6 +1241,8 @@ function MiniLink({ link }: { link: Link }): JSX.Element {
         overflow: "hidden",
         padding: "0 14px",
         ...theme.font.subtext,
+        fontFamily: theme.font.family,
+        letterSpacing: "0",
         color: look.ink,
       }}
       children={[
@@ -1246,6 +1254,7 @@ function MiniLink({ link }: { link: Link }): JSX.Element {
               fontFamily: theme.font.family,
               color: look.ink,
               fontWeight: theme.weight.semibold,
+              letterSpacing: "0",
               textShadow: "var(--bb-ink-shadow)",
               transition: `text-shadow ${MOTION}`,
             }}
@@ -1260,6 +1269,7 @@ function MiniLink({ link }: { link: Link }): JSX.Element {
               ...CHIP_LINE,
               fontFamily: theme.font.family,
               color: look.ink,
+              letterSpacing: "0",
               textShadow: "var(--bb-ink-shadow)",
               transition: `text-shadow ${MOTION}`,
             }}
@@ -1294,7 +1304,7 @@ export default function App(): JSX.Element {
             flexDirection: "column",
             alignItems: "center",
             textAlign: "center",
-            gap: 8,
+            gap: 0,
             width: "100%",
             maxWidth: "100%",
             minWidth: 0,
@@ -1310,14 +1320,14 @@ export default function App(): JSX.Element {
             style={{
               fontFamily: theme.font.family,
               color: look.ink,
-              fontSize: "clamp(36px, 10vw, 64px)",
-              lineHeight: 1.08,
-              fontWeight: theme.weight.medium,
-              letterSpacing: "-0.02em",
+              fontSize: "clamp(46px, 13vw, 72px)",
+              lineHeight: 0.96,
+              fontWeight: theme.weight.semibold,
+              letterSpacing: "-0.034em",
               textTransform: "none",
               textAlign: "center",
               textShadow: dark ? SOFT_SHADOW_DARK : SOFT_SHADOW_LIGHT,
-              margin: 0,
+              margin: "10px 0 0",
               width: "100%",
               maxWidth: "100%",
               minWidth: 0,
@@ -1328,7 +1338,7 @@ export default function App(): JSX.Element {
           >
             {hero.text.length > 0 ? hero.text : null}
             {hero.clusters.map((cluster, index) => (
-              <span key={`hero-emoji-${index}`} style={heroEmojiStyle(index, hero.text.length > 0)}>
+              <span key={`hero-emoji-${index}`} style={heroEmojiStyle(index, hero.text.length > 0, dark ? SILVER : GRAPHITE)}>
                 {cluster}
               </span>
             ))}
@@ -1339,13 +1349,13 @@ export default function App(): JSX.Element {
               style={{
                 fontFamily: theme.font.family,
                 color: look.ink,
-                fontSize: 16,
+                fontSize: 15,
                 lineHeight: 1.25,
-                fontWeight: theme.weight.semibold,
-                letterSpacing: "0.01em",
+                fontWeight: theme.weight.medium,
+                letterSpacing: "0",
                 textAlign: "center",
                 textShadow: dark ? SOFT_SHADOW_DARK : SOFT_SHADOW_LIGHT,
-                margin: 0,
+                margin: "4px 0 0",
                 width: "100%",
                 maxWidth: "100%",
                 minWidth: 0,
@@ -1362,13 +1372,13 @@ export default function App(): JSX.Element {
               fontFamily: theme.font.family,
               color: look.ink,
               fontSize: 15,
-              lineHeight: 1.4,
-              fontWeight: theme.weight.medium,
+              lineHeight: 1.45,
+              fontWeight: theme.weight.regular,
               letterSpacing: "0",
               textTransform: "none",
               textAlign: "center",
               textShadow: dark ? SOFT_SHADOW_DARK : SOFT_SHADOW_LIGHT,
-              margin: "4px 0 0",
+              margin: "8px 0 0",
               width: "100%",
               maxWidth: "100%",
               minWidth: 0,
@@ -1413,15 +1423,16 @@ export default function App(): JSX.Element {
         {footer.length > 0 ? (
         <p
           style={{
-            ...theme.font.caption,
             fontFamily: theme.font.family,
             color: look.ink,
-            fontWeight: theme.weight.semibold,
-            letterSpacing: "0.08em",
+            fontSize: 12,
+            lineHeight: 1.4,
+            fontWeight: theme.weight.medium,
+            letterSpacing: "0",
             textTransform: "none",
             textShadow: dark ? SOFT_SHADOW_DARK : SOFT_SHADOW_LIGHT,
             textAlign: "center",
-            margin: "8px 0 0",
+            margin: 0,
             width: "100%",
             maxWidth: "100%",
             minWidth: 0,
