@@ -1174,7 +1174,8 @@ function InstallTile({ bot }: { bot: Bot }): JSX.Element {
                 ...FORE,
                 fontFamily: theme.font.family,
                 color: look.ink,
-                fontSize: "clamp(24px, 6.4vw, 30px)",
+                // 22px floor: a title beside the 64px icon stays inside a 320–390px column. Desktop still caps at 30.
+                fontSize: "clamp(22px, 5.6vw, 30px)",
                 lineHeight: 1.05,
                 fontWeight: 700,
                 letterSpacing: "-0.04em",
@@ -1324,10 +1325,11 @@ export default function App(): JSX.Element {
             style={{
               fontFamily: theme.font.family,
               color: look.ink,
-              fontSize: "clamp(72px, 20vw, 108px)",
+              // 15vw keeps 7 caps + a trailing emoji on one line at ~390px. 80px fills the 500px column.
+              fontSize: "clamp(40px, 15vw, 80px)",
               lineHeight: 0.84,
               fontWeight: 700,
-              letterSpacing: "-0.05em",
+              letterSpacing: "-0.06em",
               textTransform: "uppercase",
               textAlign: "center",
               margin: 0,
