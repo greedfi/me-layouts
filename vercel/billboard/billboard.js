@@ -24,6 +24,10 @@ const PAGE_TITLE = "__PAGE_TITLE__";
 const OG_IMAGE_URL = "__OG_IMAGE_URL__";
 const GA_MEASUREMENT_ID = "__GA_MEASUREMENT_ID__";
 const META_PIXEL_ID = "__META_PIXEL_ID__";
+/** Corner-mark href. Leave the placeholder until the share URL exists. Not an install URL. */
+const LINKS_SHARE_HREF = "__LINKS_SHARE_HREF__";
+/** Product chrome. Not a fill token and not this user's avatar. */
+const LINKS_MARK = "assets/links-mark.jpg";
 
 const bots = [
   {
@@ -451,6 +455,13 @@ function atHandle(raw) {
   return trimmed.startsWith("@") ? trimmed : "@" + trimmed;
 }
 
+/** A real share URL. A placeholder, blank, or "#" does not navigate. */
+function shareHref(raw) {
+  const value = filled(raw);
+  if (value.length === 0 || value === "#" || /^__.+__$/.test(value)) return "";
+  return value;
+}
+
 /** A fill token still equal to its placeholder, or blank, is unset. */
 function optedToken(raw) {
   const value = filled(raw);
@@ -875,6 +886,22 @@ function miniLink(link) {
   return chip;
 }
 
+/** Default corner control. Same chip glass as the social row. Always rendered. */
+function linksMark() {
+  const face = el("div", "mark-face");
+  const img = el("img");
+  img.src = LINKS_MARK;
+  img.alt = "";
+  img.width = 36;
+  img.height = 36;
+  face.append(img);
+  const chip = glassPane("chip", shareHref(LINKS_SHARE_HREF), "Links", face);
+  chip.classList.add("product-mark");
+  // Outside the social row. Outbound counts stay on tile and chip kinds only.
+  chip.dataset.kind = "mark";
+  return chip;
+}
+
 function lookNow() {
   const appearance = resolveAppearance(APPEARANCE);
   const stage = resolveStage(STAGE);
@@ -1020,6 +1047,7 @@ function render() {
   const showHero = hero.text.length > 0 || hero.clusters.length > 0;
 
   const band = el("div", "band");
+  band.append(linksMark());
   const mast = el("header", "mast");
   const avatarRing = el("div", "avatar");
   if (avatar.length > 0) {
