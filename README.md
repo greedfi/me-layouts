@@ -22,6 +22,8 @@ Stills are human reference for the intended look. The bot does not fetch them at
 | Shelf | `layouts/shelf/page.canvas.tsx` | `stills/shelf.jpg` |
 | Polaroid | `layouts/polaroid/page.canvas.tsx` | `stills/polaroid.jpg` |
 
+Billboard also has a Vercel static export at `vercel/billboard/`. Pages fill stays the canvas file. The Vercel route fills `vercel/billboard/billboard.js` with the same tokens. See [Vercel static export (Billboard)](#vercel-static-export-billboard).
+
 Each file default-exports `App` and exports `const LAYOUT` matching the folder name (`"stack"`, `"billboard"`, `"magazine"`, `"terminal"`, `"bento"`, `"orbit"`, `"broadsheet"`, `"shelf"`, or `"polaroid"`).
 
 ## Fill procedure
@@ -130,3 +132,19 @@ Templates normalize at render: a missing `@` is added, an existing `@` is kept. 
 - Colors come from `useGrokTheme()`. Stack's `BrandWash` canvas may use hex. Billboard's liquid-glass panes keep module-level material constants (rgba). Its default graphite blooms use theme ink. `STAGE` `color` and a named `ACCENT` use baked silk plates on the stage only, hue-shifted per accent. Day keys those plates onto a paper base; dark keeps the studio plates on a matching charcoal, and the drift loops stay. The page ground matches that stage (graphite uses the device field) and is full-bleed, so a short viewport, host peek, or overscroll is not theme white. Never `theme.accent`, never lacquer, never a chip wash, never a stage grid. Appearance follows `theme.kind` (light is day, dark is the charcoal field); a baked `APPEARANCE` does not override it. `ACCENT` (`silver`, `rose`, `sage`, `violet`, `amber`, `teal`; unset `silver`) leaves tiles and chips on the neutral glass. A named accent hue-shifts the silk and may tint the focus ring. Do not add a theme toggle, device chrome, or a second copy of the fill tokens.
 - Install hrefs must be real `https://x.ai/bot/...` URLs after fill.
 - Leave `export default function App` and `export const LAYOUT` in place.
+
+## Vercel static export (Billboard)
+
+Optional deploy path for Billboard only. The Pages pack is unchanged: `.me` still fetches `layouts/billboard/page.canvas.tsx` for a Grok page. When an owner picks the Vercel route, fetch this tree from `main` and fill it. Do not invent a second layout.
+
+| | |
+|---|---|
+| Tree | `vercel/billboard/` |
+| Fill file | `vercel/billboard/billboard.js` |
+| Project root | `vercel/billboard` |
+
+The string initializers in `billboard.js` are the same ones as the canvas pack, once each: `AVATAR`, `DISPLAY_NAME`, `HANDLE`, `BIO`, `FOOTER`, `APPEARANCE`, `STAGE`, `ACCENT`. Replace the whole `bots` array and the whole `links` array. Leave the JSX-equivalent renderer alone. `LAYOUT` stays `"billboard"`.
+
+`APPEARANCE` is ignored. The static page follows `prefers-color-scheme` (light is day, dark is the charcoal field), the same device rule as `useGrokTheme`. `STAGE` `color` uses the photographic silk plates from the canvas (bundled under `vercel/billboard/assets/`) and the same drift loops, including the reduced-motion resting pose. A named `ACCENT` hue-shifts that silk. Do not point the plates at a CDN, and do not edit the canvas file while filling this route.
+
+Full notes for the filler, including `vercel deploy` settings, are in `vercel/billboard/README.md`.

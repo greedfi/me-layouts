@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>Billboard</title>
+    <script>
+      document.documentElement.dataset.appearance = matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "day";
+    </script>
+    <link rel="stylesheet" href="billboard.css" />
+    <link rel="preload" href="assets/inter-regular.woff2" as="font" type="font/woff2" crossorigin />
+    <link rel="preload" href="assets/inter-medium.woff2" as="font" type="font/woff2" crossorigin />
+    <link rel="preload" href="assets/inter-semibold.woff2" as="font" type="font/woff2" crossorigin />
+    <link rel="preload" href="assets/silk-day.jpg" as="image" />
+    <link rel="preload" href="assets/silk-dark.jpg" as="image" />
+    <link rel="preload" href="assets/silk-ribbon.jpg" as="image" />
+    <link rel="preload" href="assets/silk-peach.jpg" as="image" />
+  </head>
+  <body>
+    <div id="billboard" class="page"></div>
+    <script src="billboard.js"></script>
+  </body>
+</html>

@@ -1,0 +1,546 @@
+/* Billboard static port. Materials follow layouts/billboard/page.canvas.tsx.
+   Inter is bundled under the SIL Open Font License — assets/OFL.txt. */
+
+@font-face {
+  font-family: "Inter";
+  src: url("assets/inter-regular.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Inter";
+  src: url("assets/inter-medium.woff2") format("woff2");
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Inter";
+  src: url("assets/inter-semibold.woff2") format("woff2");
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+}
+
+:root {
+  color-scheme: light;
+  --bb-ground: #ffffff;
+  --bb-ink: rgba(18, 18, 20, 0.96);
+  --bb-glass-ink: rgba(58, 64, 72, 0.92);
+  --bb-tint: linear-gradient(180deg, rgba(255, 255, 255, 0.32) 0%, rgba(206, 212, 218, 0.12) 46%, rgba(58, 64, 72, 0.18) 100%);
+  --bb-milk: radial-gradient(78% 34% at 50% 0%, rgba(255, 255, 255, 0.44), rgba(255, 255, 255, 0.07) 22%, rgba(36, 40, 48, 0.03) 52%);
+  --bb-shine: inset 0 0 7px rgba(255, 255, 255, 0.34);
+  --bb-elev: 0 24px 60px rgba(16, 16, 20, 0.28), 0 4px 14px rgba(16, 16, 20, 0.14);
+  --bb-elev-hover: 0 34px 70px rgba(16, 16, 20, 0.36), 0 12px 24px rgba(16, 16, 20, 0.2);
+  --bb-sheen: 0.14;
+  --bb-ink-shadow: 0 1px 2px rgba(18, 18, 20, 0.22);
+  --bb-ink-shadow-hover: 0.025em 0.025em 0.04em rgba(18, 18, 20, 0.32);
+  --bb-soft-shadow: 0 1px 2px rgba(18, 18, 20, 0.22);
+  --bb-avatar-ring: 0 0 0 2px rgba(16, 16, 20, 0.88), 0 10px 24px rgba(16, 16, 20, 0.16);
+  --bb-icon-ring: inset 0 0 0 1px rgba(16, 16, 20, 0.16);
+  --bb-well: #e8eaee;
+  --bb-focus: #121214;
+  --bb-emoji: rgba(18, 18, 20, 0.96);
+}
+
+:root[data-appearance="dark"] {
+  color-scheme: dark;
+  --bb-ground: #101114;
+  --bb-ink: rgba(244, 245, 247, 0.82);
+  --bb-glass-ink: rgba(213, 218, 225, 0.86);
+  --bb-tint: linear-gradient(180deg, rgba(255, 255, 255, 0.07) 0%, rgba(16, 26, 32, 0.08) 42%, rgba(4, 10, 14, 0.26) 100%);
+  --bb-milk: radial-gradient(78% 36% at 50% 0%, rgba(255, 255, 255, 0.18), rgba(255, 255, 255, 0.04) 24%, rgba(255, 255, 255, 0) 50%);
+  --bb-shine: inset 0 0 8px rgba(255, 255, 255, 0.24);
+  --bb-elev: 0 28px 64px rgba(0, 0, 5, 0.62), 0 4px 14px rgba(0, 0, 5, 0.38);
+  --bb-elev-hover: 0 40px 78px rgba(0, 0, 5, 0.76), 0 14px 28px rgba(0, 0, 5, 0.5);
+  --bb-sheen: 0.36;
+  --bb-ink-shadow: 0 1px 3px rgba(0, 0, 0, 0.45);
+  --bb-ink-shadow-hover: 0.025em 0.025em 0.05em rgba(0, 0, 0, 0.55);
+  --bb-soft-shadow: 0 1px 3px rgba(0, 0, 0, 0.45);
+  --bb-avatar-ring: 0 0 0 2px rgba(255, 255, 255, 0.88), 0 10px 24px rgba(0, 0, 0, 0.45);
+  --bb-icon-ring: inset 0 0 0 1px rgba(255, 255, 255, 0.28);
+  --bb-well: #1b1f26;
+  --bb-focus: #f4f5f7;
+  --bb-emoji: #f4f5f7;
+}
+
+:root[data-field="silk"] {
+  --bb-ground: #f3f7f6;
+}
+
+:root[data-appearance="dark"][data-field="silk"] {
+  --bb-ground: #041115;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  min-height: 100%;
+  width: 100%;
+  background: var(--bb-ground);
+  overflow-x: clip;
+}
+
+body {
+  min-height: 100dvh;
+}
+
+.page {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  min-height: max(100%, 100dvh);
+  overflow-x: clip;
+  background: transparent;
+  color: var(--bb-ink);
+  font-family: "Inter", ui-sans-serif, system-ui, "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif;
+  font-synthesis: none;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+.stage {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  overflow: hidden;
+  background: var(--bb-ground);
+}
+
+.stage-silk {
+  isolation: isolate;
+}
+
+.silk-stack {
+  position: absolute;
+  inset: -14%;
+  pointer-events: none;
+}
+
+.silk-img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  pointer-events: none;
+}
+
+.silk-veil {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.stage-day .silk-veil {
+  background: radial-gradient(ellipse 64% 18% at 50% 4%, rgba(255, 255, 255, 0.42), rgba(255, 255, 255, 0) 72%);
+}
+
+.stage-dark .silk-veil {
+  background: radial-gradient(ellipse 64% 18% at 50% 6%, rgba(0, 0, 0, 0.38), rgba(0, 0, 0, 0) 70%);
+}
+
+.band {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  max-width: 100%;
+  margin: 0 auto;
+  padding-top: max(24px, env(safe-area-inset-top, 0px));
+  padding-right: max(clamp(16px, 2.5vw, 40px), env(safe-area-inset-right, 0px));
+  padding-bottom: max(28px, env(safe-area-inset-bottom, 0px));
+  padding-left: max(clamp(16px, 2.5vw, 40px), env(safe-area-inset-left, 0px));
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 22px;
+  min-width: 0;
+}
+
+/* Desktop column. Owner measure: center of one red stroke to the center of the other. */
+@media (min-width: 480px) {
+  .band {
+    max-width: 445px;
+    padding-right: 0;
+    padding-left: 0;
+  }
+}
+
+.mast {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 0;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+}
+
+.avatar {
+  width: 60px;
+  height: 60px;
+  flex: 0 0 60px;
+  border-radius: 9999px;
+  overflow: hidden;
+  background: var(--bb-well);
+  box-shadow: var(--bb-avatar-ring);
+}
+
+.avatar img,
+.icon-well img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.hero-name {
+  font-size: clamp(46px, 13vw, 72px);
+  line-height: 0.96;
+  font-weight: 600;
+  letter-spacing: -0.034em;
+  text-transform: none;
+  text-align: center;
+  text-shadow: var(--bb-soft-shadow);
+  margin: 10px 0 0;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  color: var(--bb-ink);
+}
+
+.hero-emoji {
+  display: inline-block;
+  font-size: 0.5em;
+  line-height: 1;
+  vertical-align: middle;
+  letter-spacing: 0;
+  white-space: nowrap;
+  text-transform: none;
+  max-width: 100%;
+  color: var(--bb-emoji);
+}
+
+.handle,
+.bio,
+.site-footer {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  text-align: center;
+  text-shadow: var(--bb-soft-shadow);
+  color: var(--bb-ink);
+}
+
+.handle {
+  font-size: 15px;
+  line-height: 1.25;
+  font-weight: 500;
+  letter-spacing: 0;
+  margin: 4px 0 0;
+}
+
+.bio {
+  font-size: 15px;
+  line-height: 1.45;
+  font-weight: 400;
+  letter-spacing: 0;
+  text-transform: none;
+  margin: 8px 0 0;
+  white-space: pre-wrap;
+}
+
+.bots {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+}
+
+.links {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  align-content: center;
+  gap: 10px;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+}
+
+.site-footer {
+  font-size: 12px;
+  line-height: 1.4;
+  font-weight: 500;
+  letter-spacing: 0;
+  text-transform: none;
+  margin: 0;
+}
+
+.glass {
+  position: relative;
+  isolation: isolate;
+  max-width: 100%;
+  min-width: 0;
+  text-decoration: none;
+  cursor: pointer;
+  color: var(--bb-glass-ink);
+  -webkit-tap-highlight-color: transparent;
+  outline: none;
+  transform: translateY(0) scale(1);
+  transform-origin: center;
+  transition: transform 150ms ease, box-shadow 150ms ease;
+  border-radius: var(--glass-radius);
+  box-shadow: var(--bb-elev);
+}
+
+.glass:focus {
+  outline: 2px solid var(--bb-focus);
+  outline-offset: 3px;
+}
+
+.glass:active {
+  transform: translateY(0) scale(0.97);
+}
+
+.glass-tile {
+  display: flex;
+  width: 100%;
+  --glass-radius: 20px;
+  --glass-blur: 7.44px;
+  --glass-sat: 1.48;
+  --glass-tint-opacity: 0.595;
+  --glass-specular: 1;
+}
+
+.glass-chip {
+  display: inline-flex;
+  width: 44px;
+  height: 44px;
+  min-width: 44px;
+  min-height: 44px;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  align-self: center;
+  overflow: hidden;
+  --glass-radius: 999px;
+  --glass-blur: 6.6px;
+  --glass-sat: 1.42;
+  --glass-tint-opacity: 0.55;
+  --glass-specular: 0.96;
+}
+
+@media (hover: hover) {
+  .glass-tile:hover {
+    transform: translateY(-3px);
+    box-shadow: var(--bb-elev-hover);
+  }
+
+  .glass-chip:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--bb-elev-hover);
+  }
+
+  .glass:hover .glass-copy {
+    text-shadow: var(--bb-ink-shadow-hover);
+  }
+
+  .glass:hover .glass-hover {
+    opacity: 1;
+  }
+
+  .glass-tile:active,
+  .glass-chip:active {
+    transform: translateY(0) scale(0.97);
+  }
+}
+
+.glass-layers,
+.glass-layer,
+.glass-hover {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+}
+
+.glass-layers {
+  z-index: 0;
+  overflow: hidden;
+  border-radius: var(--glass-radius);
+  clip-path: inset(0 round var(--glass-radius));
+}
+
+.glass-frost,
+.glass-displace {
+  z-index: 0;
+  background: transparent;
+}
+
+.glass-frost {
+  backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-sat));
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-sat));
+}
+
+.glass-tint {
+  z-index: 1;
+  background: var(--bb-tint);
+  opacity: var(--glass-tint-opacity);
+}
+
+.glass-milk {
+  z-index: 1;
+  background: var(--bb-milk);
+}
+
+.glass-spec {
+  z-index: 2;
+  background-size: 100% 100%;
+  background-repeat: no-repeat;
+  opacity: var(--glass-specular);
+}
+
+.glass-shine {
+  z-index: 2;
+  box-shadow: var(--bb-shine);
+}
+
+.glass-sheen {
+  z-index: 2;
+  background: linear-gradient(
+    118deg,
+    rgba(255, 255, 255, 0.5) 0%,
+    rgba(255, 255, 255, 0.08) 20%,
+    rgba(255, 255, 255, 0) 48%,
+    rgba(255, 255, 255, 0) 72%,
+    rgba(255, 255, 255, 0.26) 100%
+  );
+  mix-blend-mode: screen;
+  filter: blur(2px);
+  opacity: var(--bb-sheen);
+}
+
+.glass-hover {
+  z-index: 3;
+  background: rgba(255, 255, 255, 0.13);
+  opacity: 0;
+  transition: opacity 150ms ease;
+}
+
+.glass-content {
+  position: relative;
+  z-index: 4;
+  min-width: 0;
+}
+
+.glass-tile .glass-content {
+  width: 100%;
+}
+
+.glass-chip .glass-content {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+}
+
+.glass-filter {
+  position: absolute;
+  width: 0;
+  height: 0;
+  overflow: hidden;
+}
+
+.tile-body {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 14px;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  padding: 18px;
+}
+
+.tile-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  min-width: 0;
+}
+
+.icon-well {
+  width: 64px;
+  height: 64px;
+  flex: 0 0 64px;
+  border-radius: 16px;
+  overflow: hidden;
+  position: relative;
+  z-index: 1;
+  background: var(--bb-well);
+  box-shadow: var(--bb-icon-ring);
+}
+
+.glass-copy {
+  color: var(--bb-glass-ink);
+  text-shadow: var(--bb-ink-shadow);
+  transition: text-shadow 150ms ease;
+  margin: 0;
+  max-width: 100%;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  text-transform: none;
+}
+
+.tile-name {
+  font-size: clamp(22px, 5.6vw, 30px);
+  line-height: 1.05;
+  font-weight: 600;
+  letter-spacing: -0.03em;
+  flex: 1 1 auto;
+}
+
+.tile-desc {
+  font-size: 14px;
+  line-height: 1.35;
+  font-weight: 500;
+  letter-spacing: 0;
+}
+
+.glyph {
+  display: block;
+  flex-shrink: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [data-bb-drift] {
+    animation: none !important;
+  }
+}
