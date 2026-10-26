@@ -8,9 +8,10 @@ import { useGrokTheme, Image, useEffect, useRef, useState, type CSSProperties, t
  * Avatar and icons stay solid. The whole tile is the install link.
  * A trailing emoji run on the display name sits beside the hero at half size.
  * Long names, dense chips, and blank fields stay inside the column for any owner.
- * Type is one see-through face: silver at 0.82 on night and dark, graphite at
- * 0.82 on day, plus the now-playing legibility shadow. The field still shows
- * through the strokes. Same face for the hero, the handle, the bio, tile titles,
+ * Type is one see-through face: silver at 0.82 on night and dark, near-solid
+ * graphite on day, plus the now-playing legibility shadow. Night and dark
+ * still show the field through the strokes. Day is dense enough to read on
+ * paper. Same face for the hero, the handle, the bio, tile titles,
  * descriptions, chips, and the footer. No forced uppercase, no wide tracking.
  * The display name is those letterforms only — no pane, tile, or pill behind it.
  * Weight and size carry the hierarchy: name, then handle, then bio.
@@ -125,11 +126,12 @@ const CHIP_DIAL = { blur: 1, refraction: 52, bezel: 13, radius: 999, frost: 0.5,
 /**
  * Top-lit volume. White milk at the crown, a clearer mid, a darker foot.
  * A flat grey slab reads as glassmorphism; this lets the stage bend through.
+ * Day smoke sits under that crown so the bubble stays glass, not a white sheet.
  */
 const TINT_GRAD_DARK = "linear-gradient(180deg, rgba(255,255,255,0.18) 0%, rgba(36,38,48,0.18) 38%, rgba(8,10,16,0.50) 100%)";
-const TINT_GRAD_LIGHT = "linear-gradient(180deg, rgba(255,255,255,0.58) 0%, rgba(255,255,255,0.26) 42%, rgba(255,255,255,0.12) 100%)";
+const TINT_GRAD_LIGHT = "linear-gradient(180deg, rgba(255,255,255,0.22) 0%, rgba(118,122,130,0.16) 42%, rgba(72,76,84,0.24) 100%)";
 const MILK_DARK = "radial-gradient(92% 78% at 50% 0%, rgba(255,255,255,0.22), rgba(255,255,255,0.06) 44%, rgba(255,255,255,0) 72%)";
-const MILK_LIGHT = "radial-gradient(92% 78% at 50% 0%, rgba(255,255,255,0.72), rgba(255,255,255,0.16) 46%, rgba(255,255,255,0) 74%)";
+const MILK_LIGHT = "radial-gradient(92% 78% at 50% 0%, rgba(255,255,255,0.36), rgba(255,255,255,0.08) 46%, rgba(36,40,48,0.05) 74%)";
 const CLEAR = "rgba(0,0,0,0)";
 const WHITE = "rgba(255,255,255,1)";
 /** Faint liqui highlight wash. White at 13% sits in the asked 10–15% band. */
@@ -140,7 +142,7 @@ const HOVER_WASH = `color-mix(in srgb, ${WHITE} 13%, ${CLEAR})`;
  * offset inset draws a second arc at the corner. The lip lives in the map.
  */
 const SHINE_DARK = "inset 0 0 28px rgba(255,255,255,0.12)";
-const SHINE_LIGHT = "inset 0 0 20px rgba(255,255,255,0.42)";
+const SHINE_LIGHT = "inset 0 0 20px rgba(255,255,255,0.20)";
 const ELEVATED_DARK = "0 28px 64px rgba(0,0,5,0.62), 0 4px 14px rgba(0,0,5,0.38)";
 const ELEVATED_LIGHT = "0 24px 60px rgba(16,16,20,0.28), 0 4px 14px rgba(16,16,20,0.14)";
 const ELEVATED_HOVER_DARK = "0 40px 78px rgba(0,0,5,0.76), 0 14px 28px rgba(0,0,5,0.5)";
@@ -180,26 +182,28 @@ const COLOR_DAY = ["rgba(232, 150, 168, 1)", "rgba(140, 190, 150, 1)", "rgba(176
 const COLOR_NIGHT_OPACITY = [0.55, 0.46, 0.4, 0.28] as const;
 const COLOR_DARK_OPACITY = [0.62, 0.5, 0.44, 0.3] as const;
 const COLOR_DAY_OPACITY = [0.55, 0.48, 0.42, 0.32] as const;
-/** now-playing micro labels: 0 1px 3px rgba(0,0,0,0.45). Light is the inverted lift. */
+/** now-playing micro labels: 0 1px 3px rgba(0,0,0,0.45). Day grounds graphite on paper. */
 const SOFT_SHADOW_DARK = "0 1px 3px rgba(0,0,0,0.45)";
-const SOFT_SHADOW_LIGHT = "0 1px 2px rgba(255,255,255,0.78)";
+const SOFT_SHADOW_LIGHT = "0 1px 2px rgba(18,18,20,0.22)";
 /**
  * Conic button hover moves the label shadow onto a slight diagonal
  * (0.025em 0.025em 0.025em). Same shift, kept strong enough to read on glass.
  */
 const SOFT_SHADOW_HOVER_DARK = "0.025em 0.025em 0.05em rgba(0,0,0,0.55)";
-const SOFT_SHADOW_HOVER_LIGHT = "0.025em 0.025em 0.04em rgba(255,255,255,0.9)";
+const SOFT_SHADOW_HOVER_LIGHT = "0.025em 0.025em 0.04em rgba(18,18,20,0.32)";
 /** Focus ring. Silver uses silver on dark and graphite on light. Never the host accent. */
 const SILVER = "#f4f5f7";
 const GRAPHITE = "#121214";
 /**
- * One see-through ink. 0.82 of silver on night/dark, 0.82 of graphite on day.
- * 0.55 went ghost-faint on graphite; opaque theme.text.primary stamps the glass.
- * The same mix is the hero, the handle, the bio, tiles, chips, and the footer.
+ * One see-through ink. 0.82 of silver on night/dark. Day is 0.96 of graphite
+ * so the same face reads on paper. 0.55 went ghost-faint; opaque
+ * theme.text.primary stamps the glass. The same ink is the hero, the handle,
+ * the bio, tiles, chips, and the footer.
  */
 const SEE_MIX = "82%";
+const SEE_DAY_MIX = "96%";
 const SEE_DARK = `color-mix(in srgb, ${SILVER} ${SEE_MIX}, ${CLEAR})`;
-const SEE_DAY = `color-mix(in srgb, ${GRAPHITE} ${SEE_MIX}, ${CLEAR})`;
+const SEE_DAY = `color-mix(in srgb, ${GRAPHITE} ${SEE_DAY_MIX}, ${CLEAR})`;
 const FOCUS_NONE = "none";
 type AccentName = "silver" | "rose" | "sage" | "violet" | "amber" | "teal";
 /**
@@ -215,11 +219,11 @@ const ACCENT_FOCUS = {
 } as const;
 /** Chip tint in the same opacity band as TINT_GRAD. Silver keeps that gradient. */
 const ACCENT_CHIP = {
-  rose: { dark: "rgba(92, 48, 58, 0.70)", light: "rgba(255, 228, 232, 0.62)" },
-  sage: { dark: "rgba(44, 62, 50, 0.70)", light: "rgba(228, 240, 230, 0.62)" },
-  violet: { dark: "rgba(58, 48, 82, 0.70)", light: "rgba(236, 230, 248, 0.62)" },
-  amber: { dark: "rgba(82, 62, 36, 0.70)", light: "rgba(248, 236, 214, 0.62)" },
-  teal: { dark: "rgba(36, 70, 76, 0.70)", light: "rgba(214, 240, 242, 0.62)" },
+  rose: { dark: "rgba(92, 48, 58, 0.70)", light: "rgba(176, 112, 124, 0.62)" },
+  sage: { dark: "rgba(44, 62, 50, 0.70)", light: "rgba(112, 140, 120, 0.62)" },
+  violet: { dark: "rgba(58, 48, 82, 0.70)", light: "rgba(132, 118, 168, 0.62)" },
+  amber: { dark: "rgba(82, 62, 36, 0.70)", light: "rgba(168, 132, 88, 0.62)" },
+  teal: { dark: "rgba(36, 70, 76, 0.70)", light: "rgba(80, 146, 154, 0.62)" },
 } as const;
 /** liqui button: transition-[transform,box-shadow] duration-150. */
 const MOTION = "150ms ease";
@@ -617,7 +621,7 @@ function GlassPane({
             background: SHEEN,
             mixBlendMode: "screen",
             filter: SHEEN_BLUR,
-            opacity: dark ? 0.72 : 0.4,
+            opacity: dark ? 0.72 : 0.22,
           }}
         />
         {shot ? (
@@ -1291,7 +1295,7 @@ export default function App(): JSX.Element {
           >
             {hero.text.length > 0 ? hero.text : null}
             {hero.clusters.map((cluster, index) => (
-              <span key={`hero-emoji-${index}`} style={heroEmojiStyle(index, hero.text.length > 0, dark ? SILVER : GRAPHITE)}>
+              <span key={`hero-emoji-${index}`} style={heroEmojiStyle(index, hero.text.length > 0, dark ? SILVER : look.ink)}>
                 {cluster}
               </span>
             ))}
