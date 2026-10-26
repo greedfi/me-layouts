@@ -65,6 +65,11 @@ const STAMP_DARK = "0 1px 0 rgba(0,0,0,0.92), 1px 2px 0 rgba(0,0,0,0.55)";
 const STAMP_LIGHT = "0 1px 0 rgba(255,255,255,0.92), 1px 2px 0 rgba(16,16,20,0.2)";
 const SHEEN =
   "linear-gradient(122deg, rgba(255,255,255,0) 0%, rgba(255,255,255,0) 8%, rgba(255,255,255,0.72) 24%, rgba(255,255,255,0.1) 42%, rgba(255,255,255,0) 58%)";
+const STAGE_STREAK =
+  "linear-gradient(118deg, rgba(255,255,255,0) 0%, rgba(255,255,255,0.7) 48%, rgba(255,255,255,0) 74%)";
+const PILL_BORDER = "1px solid rgba(255,255,255,0.2)";
+const PILL_SHADOW = "inset 0 1px 0 rgba(255,255,255,0.5), inset 0 -8px 12px rgba(0,0,0,0.16)";
+const PILL_GLOSS = "linear-gradient(180deg, rgba(255,255,255,0.45), rgba(255,255,255,0))";
 
 /** Lens-button 6-pass, brightest on the top lip, softer sides and bottom. */
 const RIM_DARK = [
@@ -350,8 +355,7 @@ function Stage(): JSX.Element {
           width: "80%",
           height: "34%",
           pointerEvents: "none",
-          background:
-            "linear-gradient(118deg, rgba(255,255,255,0) 0%, rgba(255,255,255,0.7) 48%, rgba(255,255,255,0) 74%)",
+          background: STAGE_STREAK,
           filter: "blur(16px)",
           opacity: dark ? 0.16 : 0.4,
           transform: "rotate(-8deg)",
@@ -514,8 +518,8 @@ function InstallTile({ bot }: { bot: Bot }): JSX.Element {
           borderRadius: 999,
           backgroundColor: theme.fill.primary,
           color: label,
-          border: "1px solid rgba(255,255,255,0.2)",
-          boxShadow: "inset 0 1px 0 rgba(255,255,255,0.5), inset 0 -8px 12px rgba(0,0,0,0.16)",
+          border: PILL_BORDER,
+          boxShadow: PILL_SHADOW,
           fontSize: 16,
           fontWeight: 700,
           letterSpacing: "0.01em",
@@ -531,7 +535,7 @@ function InstallTile({ bot }: { bot: Bot }): JSX.Element {
             top: 0,
             height: "55%",
             pointerEvents: "none",
-            background: "linear-gradient(180deg, rgba(255,255,255,0.45), rgba(255,255,255,0))",
+            background: PILL_GLOSS,
           }}
         />
         <span style={{ position: "relative", zIndex: 1, display: "inline-flex", alignItems: "center", gap: 8 }}>
