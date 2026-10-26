@@ -25,10 +25,11 @@ import { useGrokTheme, Image, useEffect, useRef, useState, type CSSProperties, t
  * A named accent hue-shifts the silk. Day keys those plates onto a paper base.
  * Dark keeps the studio plates. Both follow the device. Not lacquer.
  * The page ground is that same stage base, full-bleed on all four sides:
- * day paper, dark charcoal, graphite the device field. The page box is the
- * viewport. The column shares that width, inset only by a safe-area margin,
- * so the stack and the silk read as one field. Viewport, host peek, and
- * overscroll meet the field. Theme white is not a frame around it.
+ * day paper, dark charcoal, graphite the device field. On a desktop the silk
+ * meets the viewport edges. The install column stays the red-line measure,
+ * centered, with silk in the side margins. A phone keeps the full-width
+ * column and its safe-area inset. Viewport, host peek, and overscroll meet
+ * the field. Theme white is not a frame around it.
  * Link chips are monochrome site icons. The handle stays on the accessible
  * name, not as a word in the glass.
  * No hairline grid.
@@ -612,7 +613,7 @@ function GlassPane({
         ...frame,
       }}
     >
-      <div aria-hidden style={{ ...LAYER, overflow: "hidden", borderRadius: radius, clipPath: clip }}>
+      <div aria-hidden style={{ ...LAYER, zIndex: 0, overflow: "hidden", borderRadius: radius, clipPath: clip }}>
         <div style={{ ...LAYER, zIndex: 0, backdropFilter: frostFilter, WebkitBackdropFilter: frostFilter, background: CLEAR }} />
         {shot ? (
           <div style={{ ...LAYER, zIndex: 0, backdropFilter: `url(#${filterId})`, WebkitBackdropFilter: `url(#${filterId})`, background: CLEAR }} />
@@ -1136,8 +1137,34 @@ function SilkStage({ look }: { look: BillboardLook }): JSX.Element {
  */
 function Stage(): JSX.Element {
   const look = useBillboardLook();
-  if (look.stage === "color" || look.accent !== "silver") return <SilkStage look={look} />;
-  return <GraphiteStage look={look} />;
+  const desktop = useDesktop();
+  const ref = useRef<HTMLDivElement | null>(null);
+  // #root is contain:paint and max-width 72rem, which traps position:fixed
+  // and leaves the document ground in the side margins. On a desktop the
+  // stage node is parked on the body so the plates cover the viewport. The
+  // phone leaves it in the page, where the column already meets the edges.
+  // The effect repeats after each commit because a render puts the node back
+  // under the page.
+  useEffect(() => {
+    const node = ref.current;
+    if (!node || typeof document === "undefined") return;
+    const page = document.getElementById(LAYOUT);
+    if (!desktop || !document.body) {
+      if (page && node.parentElement !== page) page.insertBefore(node, page.firstChild);
+      return;
+    }
+    document.body.insertBefore(node, document.body.firstChild);
+    return () => {
+      const home = document.getElementById(LAYOUT);
+      if (home && node.isConnected && node.parentElement !== home) home.insertBefore(node, home.firstChild);
+    };
+  });
+  const stage = look.stage === "color" || look.accent !== "silver" ? <SilkStage look={look} /> : <GraphiteStage look={look} />;
+  return (
+    <div ref={ref} style={{ display: "contents" }}>
+      {stage}
+    </div>
+  );
 }
 
 /** Color, or any named accent, is the silk field. Graphite plus silver stays the device field. */
@@ -1189,26 +1216,81 @@ function useStageDocument(ground: string): void {
   }, [ground]);
 }
 
-function pageStyle(look: BillboardLook): CSSProperties {
+/**
+ * Host narrow cutoff. At this width and above, the column is the desktop
+ * measure and the silk is pulled out to the viewport. Below it, the phone
+ * column stays exactly as it shipped.
+ */
+const DESKTOP_QUERY = "(min-width: 480px)";
+/**
+ * Owner markup, center of one red stroke to the center of the other.
+ * Header, tiles, and icon chips share this desktop measure.
+ */
+const DESKTOP_COLUMN_PX = 445;
+
+function desktopNow(): boolean {
+  return typeof window !== "undefined" && typeof window.matchMedia === "function" && window.matchMedia(DESKTOP_QUERY).matches;
+}
+
+function useDesktop(): boolean {
+  const [desktop, setDesktop] = useState(desktopNow);
+  useEffect(() => {
+    if (typeof window === "undefined" || typeof window.matchMedia !== "function") return;
+    const mq = window.matchMedia(DESKTOP_QUERY);
+    const onChange = (): void => setDesktop(mq.matches);
+    onChange();
+    mq.addEventListener("change", onChange);
+    return () => mq.removeEventListener("change", onChange);
+  }, []);
+  return desktop;
+}
+
+/**
+ * The host paints #root at max-width 72rem with contain:paint, which traps
+ * position:fixed and leaves the document ground in the side margins. On a
+ * desktop the root is opened to the viewport and lifted above the stage, so
+ * the plates can sit on the body and still show through the column.
+ */
+function useDesktopStageHost(desktop: boolean): void {
+  useEffect(() => {
+    if (!desktop || typeof document === "undefined") return;
+    const root = document.getElementById("root");
+    if (!root) return;
+    const keys = ["max-width", "width", "margin", "background-color", "overflow-x", "z-index", "position"] as const;
+    root.style.setProperty("max-width", "none", "important");
+    root.style.setProperty("width", "100%", "important");
+    root.style.setProperty("margin", "0", "important");
+    root.style.setProperty("background-color", "transparent", "important");
+    root.style.setProperty("overflow-x", "clip", "important");
+    root.style.setProperty("position", "relative", "important");
+    root.style.setProperty("z-index", "1", "important");
+    return () => {
+      for (const key of keys) root.style.removeProperty(key);
+    };
+  }, [desktop]);
+}
+
+function pageStyle(look: BillboardLook, desktop: boolean): CSSProperties {
   const ground = stageGround(look);
   return {
     position: "relative",
-    // Definite viewport width. A percentage width shrink-wraps when the host
-    // sizes the canvas from its content, and the plates would stop at the
-    // column. 100dvw is the viewport. The breakout margins recenter that box
-    // inside a centered max-width ancestor. The column then fills this box.
-    width: "100dvw",
-    maxWidth: "100dvw",
-    minWidth: "100dvw",
-    marginLeft: "calc(50% - 50dvw)",
-    marginRight: "calc(50% - 50dvw)",
+    // Phone: 100dvw plus the breakout margins, so a shrink-wrapped host still
+    // reaches the viewport. Desktop: the root is already the viewport, and a
+    // dvw box would open a horizontal scrollport beside the silk.
+    width: desktop ? "100%" : "100dvw",
+    maxWidth: desktop ? "100%" : "100dvw",
+    minWidth: desktop ? 0 : "100dvw",
+    marginLeft: desktop ? 0 : "calc(50% - 50dvw)",
+    marginRight: desktop ? 0 : "calc(50% - 50dvw)",
     // 100% fills a sized host. 100dvh covers a short page when the parent
     // height is auto and percentage min-height collapses.
     minHeight: "max(100%, 100dvh)",
     // clip does not force a vertical scrollport, so the column still scrolls
     // with the document.
     overflowX: "clip",
-    background: ground,
+    // Desktop silk is positioned on the body, behind this box. An opaque
+    // page ground would hide it. The phone still paints the ground here.
+    background: desktop ? "transparent" : ground,
     color: look.ink,
     fontFamily: look.theme.font.family,
     fontSynthesis: "none",
@@ -1219,23 +1301,22 @@ function pageStyle(look: BillboardLook): CSSProperties {
 }
 
 /**
- * The column is the viewport. The side inset is the only gutter: 16px on a
- * phone (or a larger safe area), opening toward 40px on a desktop so the
- * glass shadow still clears the edge. A 500px cap left empty silk beside
- * the stack. Header, tiles, and icon chips share this measure.
+ * Phone: the column is the viewport, inset 16px or the safe area.
+ * Desktop: the column is the red-line measure, centered on the silk.
+ * Header, tiles, and icon chips share whichever measure is active.
  */
-function bandStyle(): CSSProperties {
+function bandStyle(desktop: boolean): CSSProperties {
   return {
     position: "relative",
     zIndex: 1,
     width: "100%",
-    maxWidth: "100%",
+    maxWidth: desktop ? DESKTOP_COLUMN_PX : "100%",
     margin: "0 auto",
     boxSizing: "border-box",
     paddingTop: "max(24px, env(safe-area-inset-top, 0px))",
-    paddingRight: "max(clamp(16px, 2.5vw, 40px), env(safe-area-inset-right, 0px))",
+    paddingRight: desktop ? 0 : "max(clamp(16px, 2.5vw, 40px), env(safe-area-inset-right, 0px))",
     paddingBottom: "max(28px, env(safe-area-inset-bottom, 0px))",
-    paddingLeft: "max(clamp(16px, 2.5vw, 40px), env(safe-area-inset-left, 0px))",
+    paddingLeft: desktop ? 0 : "max(clamp(16px, 2.5vw, 40px), env(safe-area-inset-left, 0px))",
     display: "flex",
     flexDirection: "column",
     alignItems: "stretch",
@@ -1560,6 +1641,8 @@ function MiniLink({ link }: { link: Link }): JSX.Element {
 
 export default function App(): JSX.Element {
   const look = useBillboardLook();
+  const desktop = useDesktop();
+  useDesktopStageHost(desktop);
   useStageDocument(stageGround(look));
   const theme = look.theme;
   const handle = atHandle(HANDLE);
@@ -1572,9 +1655,9 @@ export default function App(): JSX.Element {
   const showHero = hero.text.length > 0 || hero.clusters.length > 0;
   const dark = look.dark;
   return (
-    <div id={LAYOUT} style={pageStyle(look)}>
+    <div id={LAYOUT} style={pageStyle(look, desktop)}>
       <Stage />
-      <div style={bandStyle()}>
+      <div style={bandStyle(desktop)}>
         <header
           style={{
             display: "flex",
