@@ -12,11 +12,12 @@ import { useGrokTheme, Image, useEffect, useRef, useState, type CSSProperties, t
  * legibility shadow, tight semibold titles, and a restrained lens drop-shadow so
  * tile titles sit in the glass instead of on it.
  * Tiles and chips lift, wash, and press.
- * The stage is an animated lumen field: slow blooms and a drifting sheen over
- * hard rules, so the glass has an edge to bend. APPEARANCE is night, dark, or
- * day (unset follows the viewer; a dark viewer stays on the charcoal field).
- * STAGE is graphite or color (unset stays graphite). Night is a deeper, cooler
- * black. Color is muted blooms under the same glass, not lacquer.
+ * The stage has no rule grid. Graphite is neutral blooms and a slow sheen.
+ * Color is a glossy liquid field — cyan ribbon, peach drop, teal folds —
+ * drifting on a lazy 14–20s loop so the glass has color to bend. Not lacquer.
+ * APPEARANCE is night, dark, or day (unset follows the viewer; a dark viewer
+ * stays on the charcoal field). STAGE is graphite or color (unset stays graphite).
+ * Night is a deeper, cooler field.
  * ACCENT is silver, rose, sage, violet, amber, or teal (unset stays silver).
  * Silver keeps the current focus ring, hover wash, and chip tint.
  * No photographed frost plates.
@@ -148,21 +149,17 @@ const AVATAR_RING_LIGHT = "0 0 0 2px rgba(16,16,20,0.88), 0 10px 24px rgba(16,16
 const ICON_RING_DARK = "inset 0 0 0 1px rgba(255,255,255,0.28)";
 const ICON_RING_LIGHT = "inset 0 0 0 1px rgba(16,16,20,0.16)";
 
-const RULE_W50 = "rgba(255,255,255,0.50)";
-const RULE_W40 = "rgba(255,255,255,0.40)";
-const RULE_W30 = "rgba(255,255,255,0.30)";
-const RULE_W25 = "rgba(255,255,255,0.25)";
-const RULE_K50 = "rgba(0,0,0,0.50)";
-const RULE_K40 = "rgba(0,0,0,0.40)";
-const RULE_K30 = "rgba(0,0,0,0.30)";
-const RULE_K22 = "rgba(0,0,0,0.22)";
 const BAND_DARK = "linear-gradient(90deg, rgba(255,255,255,0), rgba(255,255,255,0.92), rgba(255,255,255,0))";
 const BAND_LIGHT = "linear-gradient(90deg, rgba(0,0,0,0), rgba(0,0,0,0.55), rgba(0,0,0,0))";
 const SCRIM_DARK = "linear-gradient(180deg, rgba(0,0,0,0.10), rgba(0,0,0,0) 38%, rgba(0,0,0,0.45))";
 const SCRIM_LIGHT = "linear-gradient(180deg, rgba(255,255,255,0.04), rgba(0,0,0,0) 40%, rgba(16,16,24,0.16))";
 const SCRIM_NIGHT = "linear-gradient(180deg, rgba(0,0,0,0.22), rgba(0,0,0,0) 40%, rgba(0,0,0,0.55))";
-const SCRIM_COLOR_DARK = "linear-gradient(180deg, rgba(0,0,0,0.46), rgba(0,0,0,0) 28%, rgba(0,0,0,0.50))";
-const SCRIM_COLOR_LIGHT = "linear-gradient(180deg, rgba(255,255,255,0.55), rgba(255,255,255,0) 30%, rgba(255,255,255,0.50))";
+/**
+ * Sits still over the moving color field so the hero does not ride a highlight.
+ * A radial, not a bar — the liquid stays visible beside and below the name.
+ */
+const COLOR_VEIL_DARK = "radial-gradient(ellipse 72% 30% at 50% 0%, rgba(5,12,28,0.58), rgba(5,12,28,0) 70%)";
+const COLOR_VEIL_LIGHT = "radial-gradient(ellipse 72% 28% at 50% 0%, rgba(255,255,255,0.34), rgba(255,255,255,0) 70%)";
 /** Deeper than the charcoal field. The cool cast is the veil, not an accent wash. */
 const NIGHT_FIELD = "#000000";
 /** Charcoal used when dark is forced on a light host. */
@@ -176,14 +173,6 @@ const FORCED_WELL_DARK = "rgba(255,255,255,0.10)";
 const FORCED_WELL_LIGHT = "rgba(18,18,20,0.06)";
 const FORCED_DIM_DARK = "rgba(186, 190, 198, 1)";
 const FORCED_DIM_LIGHT = "rgba(70, 72, 78, 1)";
-/** Muted stage hues. Never theme.accent, never tile lacquer. */
-const COLOR_NIGHT = ["rgba(168, 120, 188, 1)", "rgba(90, 140, 168, 1)", "rgba(176, 96, 120, 1)", "rgba(140, 160, 184, 1)"] as const;
-const COLOR_DARK = ["rgba(186, 110, 140, 1)", "rgba(110, 156, 120, 1)", "rgba(170, 120, 110, 1)", "rgba(130, 140, 176, 1)"] as const;
-const COLOR_DAY = ["rgba(232, 150, 168, 1)", "rgba(140, 190, 150, 1)", "rgba(176, 160, 214, 1)", "rgba(150, 186, 204, 1)"] as const;
-const COLOR_NIGHT_OPACITY = [0.55, 0.46, 0.4, 0.28] as const;
-const COLOR_DARK_OPACITY = [0.62, 0.5, 0.44, 0.3] as const;
-const COLOR_DAY_OPACITY = [0.55, 0.48, 0.42, 0.32] as const;
-
 /** now-playing micro labels: 0 1px 3px rgba(0,0,0,0.45). Light is the inverted lift. */
 const SOFT_SHADOW_DARK = "0 1px 3px rgba(0,0,0,0.45)";
 const SOFT_SHADOW_LIGHT = "0 1px 2px rgba(255,255,255,0.78)";
@@ -851,7 +840,7 @@ function avatarRing(look: BillboardLook): CSSProperties {
   };
 }
 
-type DriftName = "a" | "b" | "c" | "d" | "bandA" | "bandB";
+type DriftName = "a" | "b" | "c" | "d" | "bandA" | "bandB" | "flowA" | "flowB" | "flowC" | "flowD";
 
 /**
  * Transform only, so the glass displacement maps are not rebuilt each frame.
@@ -865,6 +854,11 @@ const DRIFT_FRAMES: Record<DriftName, [{ transform: string }, { transform: strin
   d: [{ transform: "translate3d(0%, 0%, 0) scale(1)" }, { transform: "translate3d(-8%, -7%, 0) scale(1.1)" }],
   bandA: [{ transform: "rotate(-6deg) translate3d(0%, 0, 0)" }, { transform: "rotate(-6deg) translate3d(8%, 0, 0)" }],
   bandB: [{ transform: "rotate(7deg) translate3d(0%, 0, 0)" }, { transform: "rotate(7deg) translate3d(-8%, 0, 0)" }],
+  /** Color liquid. Small travel, alternate, so the loop eases back instead of popping. */
+  flowA: [{ transform: "translate3d(0%, 0%, 0) scale(1) rotate(0deg)" }, { transform: "translate3d(6%, 3.5%, 0) scale(1.045) rotate(1.6deg)" }],
+  flowB: [{ transform: "translate3d(0%, 0%, 0) scale(1) rotate(0deg)" }, { transform: "translate3d(-5%, 4.5%, 0) scale(1.04) rotate(-1.2deg)" }],
+  flowC: [{ transform: "translate3d(0%, 0%, 0) scale(1) rotate(0deg)" }, { transform: "translate3d(4.5%, -3.5%, 0) scale(1.035) rotate(1.1deg)" }],
+  flowD: [{ transform: "translate3d(0%, 0%, 0) scale(1)" }, { transform: "translate3d(-4%, 5%, 0) scale(1.05)" }],
 };
 
 const DRIFT_MS: Record<DriftName, number> = {
@@ -874,6 +868,10 @@ const DRIFT_MS: Record<DriftName, number> = {
   d: 28000,
   bandA: 16000,
   bandB: 22000,
+  flowA: 16000,
+  flowB: 18000,
+  flowC: 20000,
+  flowD: 14000,
 };
 
 function ensureDriftCss(): void {
@@ -896,7 +894,7 @@ function ensureDriftCss(): void {
  * Slow drift via the Web Animations API so React does not re-render the
  * glass. A stylesheet is the fallback when animate() is missing.
  */
-function Drift({ name, style }: { name: DriftName; style: CSSProperties }): JSX.Element {
+function Drift({ name, style, children }: { name: DriftName; style: CSSProperties; children?: ReactNode }): JSX.Element {
   const ref = useRef<HTMLDivElement | null>(null);
   useEffect(() => {
     const node = ref.current;
@@ -924,7 +922,11 @@ function Drift({ name, style }: { name: DriftName; style: CSSProperties }): JSX.
       node.style.animation = "";
     };
   }, [name]);
-  return <div ref={ref} data-bb-drift={name} style={style} />;
+  return (
+    <div ref={ref} data-bb-drift={name} style={style}>
+      {children}
+    </div>
+  );
 }
 
 type BloomSpec = {
@@ -946,18 +948,6 @@ const BLOOM_BLUR = [90, 100, 110, 80] as const;
 const BLOOM_DRIFT: readonly DriftName[] = ["a", "b", "c", "d"];
 
 function stageBlooms(look: BillboardLook): BloomSpec[] {
-  if (look.stage === "color") {
-    const palette = look.appearance === "night" ? COLOR_NIGHT : look.appearance === "day" ? COLOR_DAY : COLOR_DARK;
-    const opacity = look.appearance === "night" ? COLOR_NIGHT_OPACITY : look.appearance === "day" ? COLOR_DAY_OPACITY : COLOR_DARK_OPACITY;
-    return palette.map((color, index) => ({
-      key: `color-${index}`,
-      drift: BLOOM_DRIFT[index],
-      color,
-      opacity: opacity[index],
-      blur: BLOOM_BLUR[index],
-      box: BLOOM_BOX[index],
-    }));
-  }
   const opacity = look.appearance === "night" ? ([0.18, 0.28, 0.12] as const) : look.appearance === "day" ? ([0.34, 0.22, 0.2] as const) : ([0.2, 0.34, 0.16] as const);
   const hostDark = look.theme.kind === "dark";
   let primary = look.theme.text.primary;
@@ -980,28 +970,321 @@ function stageBlooms(look: BillboardLook): BloomSpec[] {
   }));
 }
 
+const STAGE_FRAME: CSSProperties = {
+  position: "absolute",
+  inset: 0,
+  zIndex: 0,
+  pointerEvents: "none",
+  overflow: "hidden",
+};
+
+/** Oversized so a few percent of drift never opens a gap at the edge. */
+const FLOW_FRAME: CSSProperties = {
+  position: "absolute",
+  inset: "-18%",
+  pointerEvents: "none",
+};
+
+type TubeLayer = { w: number; color: string; blur: number; ox: number; oy: number };
+type LiquidPart = "ground" | "ribbon" | "peach" | "teal";
+
+/** Stroke widths are tuned at a 390-wide phone. `u` scales them with the stage. */
+const RIBBON_DARK: readonly TubeLayer[] = [
+  { w: 168, color: "rgba(6,28,90,0.95)", blur: 10, ox: 12, oy: 8 },
+  { w: 128, color: "rgba(14,110,210,0.98)", blur: 6, ox: 2, oy: 0 },
+  { w: 86, color: "rgba(40,200,245,1)", blur: 4, ox: -4, oy: -4 },
+  { w: 48, color: "rgba(170,248,255,1)", blur: 2, ox: -8, oy: -7 },
+  { w: 20, color: "rgba(248,255,254,1)", blur: 1, ox: -10, oy: -8 },
+  { w: 7, color: "rgba(255,45,120,1)", blur: 1.5, ox: 18, oy: 6 },
+  { w: 4, color: "rgba(255,190,160,0.95)", blur: 1, ox: 13, oy: 3 },
+  { w: 5, color: "rgba(215,255,255,1)", blur: 1, ox: -16, oy: -12 },
+];
+const RIBBON_NIGHT: readonly TubeLayer[] = [
+  { w: 168, color: "rgba(4,14,42,0.96)", blur: 12, ox: 12, oy: 8 },
+  { w: 128, color: "rgba(10,72,150,0.96)", blur: 7, ox: 2, oy: 0 },
+  { w: 86, color: "rgba(24,160,210,0.95)", blur: 5, ox: -4, oy: -4 },
+  { w: 48, color: "rgba(130,220,240,0.92)", blur: 3, ox: -8, oy: -7 },
+  { w: 20, color: "rgba(210,248,255,0.9)", blur: 2, ox: -10, oy: -8 },
+  { w: 7, color: "rgba(255,50,130,0.9)", blur: 2, ox: 18, oy: 6 },
+  { w: 4, color: "rgba(255,180,160,0.7)", blur: 1.5, ox: 13, oy: 3 },
+  { w: 5, color: "rgba(190,245,255,0.85)", blur: 1.5, ox: -16, oy: -12 },
+];
+const RIBBON_DAY: readonly TubeLayer[] = [
+  { w: 168, color: "rgba(90,150,210,0.4)", blur: 12, ox: 12, oy: 8 },
+  { w: 128, color: "rgba(70,180,230,0.85)", blur: 6, ox: 2, oy: 0 },
+  { w: 86, color: "rgba(150,230,250,0.95)", blur: 4, ox: -4, oy: -4 },
+  { w: 48, color: "rgba(230,252,255,1)", blur: 2, ox: -8, oy: -7 },
+  { w: 20, color: "rgba(255,255,255,0.96)", blur: 1, ox: -10, oy: -8 },
+  { w: 7, color: "rgba(255,90,150,0.8)", blur: 1.5, ox: 18, oy: 6 },
+  { w: 4, color: "rgba(255,200,180,0.75)", blur: 1, ox: 13, oy: 3 },
+  { w: 5, color: "rgba(255,255,255,0.9)", blur: 1, ox: -16, oy: -12 },
+];
+const FOLD_DARK: readonly TubeLayer[] = [
+  { w: 130, color: "rgba(2,22,26,0.95)", blur: 8, ox: 8, oy: 6 },
+  { w: 86, color: "rgba(8,168,150,1)", blur: 4, ox: 0, oy: 0 },
+  { w: 42, color: "rgba(150,255,230,1)", blur: 2, ox: -5, oy: -4 },
+  { w: 7, color: "rgba(255,40,100,1)", blur: 1.5, ox: 14, oy: 5 },
+  { w: 4, color: "rgba(240,255,252,1)", blur: 1, ox: -10, oy: -6 },
+];
+const FOLD_NIGHT: readonly TubeLayer[] = [
+  { w: 130, color: "rgba(1,12,16,0.96)", blur: 10, ox: 8, oy: 6 },
+  { w: 86, color: "rgba(6,120,110,0.95)", blur: 5, ox: 0, oy: 0 },
+  { w: 42, color: "rgba(110,220,200,0.9)", blur: 3, ox: -5, oy: -4 },
+  { w: 7, color: "rgba(255,50,110,0.85)", blur: 2, ox: 14, oy: 5 },
+  { w: 4, color: "rgba(200,245,240,0.8)", blur: 1.5, ox: -10, oy: -6 },
+];
+const FOLD_DAY: readonly TubeLayer[] = [
+  { w: 130, color: "rgba(40,120,120,0.28)", blur: 10, ox: 8, oy: 6 },
+  { w: 86, color: "rgba(40,190,170,0.85)", blur: 5, ox: 0, oy: 0 },
+  { w: 42, color: "rgba(200,255,240,0.95)", blur: 2, ox: -5, oy: -4 },
+  { w: 7, color: "rgba(255,80,140,0.7)", blur: 1.5, ox: 14, oy: 5 },
+  { w: 4, color: "rgba(255,255,255,0.9)", blur: 1, ox: -10, oy: -6 },
+];
+const LIP_DARK: readonly TubeLayer[] = [
+  { w: 8, color: "rgba(12,6,14,0.65)", blur: 2, ox: 2, oy: 2 },
+  { w: 3, color: "rgba(90,255,230,0.95)", blur: 1, ox: -2, oy: -2 },
+];
+const LIP_NIGHT: readonly TubeLayer[] = [
+  { w: 8, color: "rgba(6,4,12,0.75)", blur: 2, ox: 2, oy: 2 },
+  { w: 3, color: "rgba(80,230,210,0.8)", blur: 1, ox: -2, oy: -2 },
+];
+const LIP_DAY: readonly TubeLayer[] = [
+  { w: 8, color: "rgba(80,40,60,0.28)", blur: 2, ox: 2, oy: 2 },
+  { w: 3, color: "rgba(255,255,255,0.85)", blur: 1, ox: -2, oy: -2 },
+];
+
+function ribbonLayers(appearance: Appearance): readonly TubeLayer[] {
+  if (appearance === "night") return RIBBON_NIGHT;
+  if (appearance === "day") return RIBBON_DAY;
+  return RIBBON_DARK;
+}
+
+function foldLayers(appearance: Appearance): readonly TubeLayer[] {
+  if (appearance === "night") return FOLD_NIGHT;
+  if (appearance === "day") return FOLD_DAY;
+  return FOLD_DARK;
+}
+
+function lipLayers(appearance: Appearance): readonly TubeLayer[] {
+  if (appearance === "night") return LIP_NIGHT;
+  if (appearance === "day") return LIP_DAY;
+  return LIP_DARK;
+}
+
+function fillRad(ctx: CanvasRenderingContext2D, x: number, y: number, r: number, stops: readonly (readonly [number, string])[]): void {
+  const grad = ctx.createRadialGradient(x, y, 0, x, y, r);
+  for (let i = 0; i < stops.length; i++) grad.addColorStop(stops[i][0], stops[i][1]);
+  ctx.fillStyle = grad;
+  ctx.beginPath();
+  ctx.arc(x, y, r, 0, Math.PI * 2);
+  ctx.fill();
+}
+
+function strokeTube(
+  ctx: CanvasRenderingContext2D,
+  trace: (ctx: CanvasRenderingContext2D) => void,
+  layers: readonly TubeLayer[],
+  u: number,
+): void {
+  const scale = Math.min(u, 2.2);
+  const blurScale = Math.min(u, 1.5);
+  for (let i = 0; i < layers.length; i++) {
+    const layer = layers[i];
+    ctx.save();
+    ctx.translate(layer.ox * scale, layer.oy * scale);
+    ctx.lineCap = "round";
+    ctx.lineJoin = "round";
+    ctx.lineWidth = Math.max(1, layer.w * scale);
+    ctx.strokeStyle = layer.color;
+    ctx.shadowColor = layer.color;
+    ctx.shadowBlur = layer.blur * blurScale;
+    ctx.beginPath();
+    trace(ctx);
+    ctx.stroke();
+    ctx.restore();
+  }
+}
+
+/** Cyan ribbon enters from the right so the centered name stays on cerulean. */
+function traceRibbon(ctx: CanvasRenderingContext2D, w: number, h: number): void {
+  ctx.moveTo(w * 1.12, h * 0.04);
+  ctx.bezierCurveTo(w * 1.18, h * 0.22, w * 0.95, h * 0.3, w * 0.55, h * 0.4);
+  ctx.bezierCurveTo(w * 0.05, h * 0.52, w * 0.02, h * 0.62, w * 0.38, h * 0.7);
+  ctx.bezierCurveTo(w * 0.8, h * 0.8, w * 1.05, h * 0.74, w * 0.62, h * 0.9);
+  ctx.bezierCurveTo(w * 0.22, h * 1.02, w * -0.05, h * 1.08, w * 0.28, h * 1.16);
+}
+
+function traceFold(ctx: CanvasRenderingContext2D, w: number, h: number): void {
+  ctx.moveTo(w * -0.12, h * 0.78);
+  ctx.bezierCurveTo(w * 0.22, h * 0.64, w * 0.48, h * 0.76, w * 0.7, h * 0.88);
+  ctx.bezierCurveTo(w * 0.92, h, w * 1.08, h * 0.94, w * 1.12, h * 1.06);
+}
+
+function traceLip(ctx: CanvasRenderingContext2D, w: number, h: number): void {
+  ctx.moveTo(w * 0.08, h * 0.56);
+  ctx.bezierCurveTo(w * 0.22, h * 0.5, w * 0.46, h * 0.52, w * 0.55, h * 0.62);
+  ctx.bezierCurveTo(w * 0.62, h * 0.7, w * 0.42, h * 0.76, w * 0.22, h * 0.74);
+}
+
 /**
- * What the lens looks at. Port of PlayerBackdrop: soft blooms, 1px rules,
- * and a hard-edged diagonal band. Graphite blooms stay neutral ink.
- * Color mode swaps in muted hues. The rules stay put so refraction
- * keeps an edge; the blooms and the sheen bands drift.
+ * One still of the color stage. Ground is the cerulean / plum / teal field.
+ * Ribbon, peach, and teal are transparent sheets so they can drift apart.
+ * Colors stay off theme.accent and off the tile tint.
  */
-function Stage(): JSX.Element {
+function paintLiquid(ctx: CanvasRenderingContext2D, w: number, h: number, part: LiquidPart, appearance: Appearance): void {
+  const u = Math.min(w, h) / 390;
+  const night = appearance === "night";
+  const day = appearance === "day";
+  if (part === "ground") {
+    const base = ctx.createLinearGradient(0, 0, w * 0.08, h);
+    if (day) {
+      base.addColorStop(0, "#c5e4ff");
+      base.addColorStop(0.32, "#d7e6ff");
+      base.addColorStop(0.58, "#f6d4e4");
+      base.addColorStop(0.8, "#f3e4ea");
+      base.addColorStop(1, "#d7f6f0");
+    } else if (night) {
+      base.addColorStop(0, "#071833");
+      base.addColorStop(0.3, "#0a2048");
+      base.addColorStop(0.58, "#140c28");
+      base.addColorStop(0.8, "#100818");
+      base.addColorStop(1, "#041418");
+    } else {
+      base.addColorStop(0, "#1566d8");
+      base.addColorStop(0.34, "#124eae");
+      base.addColorStop(0.58, "#1a2458");
+      base.addColorStop(0.78, "#3a1248");
+      base.addColorStop(1, "#041e22");
+    }
+    ctx.fillStyle = base;
+    ctx.fillRect(0, 0, w, h);
+    fillRad(ctx, w * 1.02, h * (day ? 0.2 : 0.18), w * 0.72, day
+      ? [[0, "rgba(255,120,170,0.35)"], [0.45, "rgba(220,140,170,0.12)"], [1, "rgba(255,180,200,0)"]]
+      : night
+        ? [[0, "rgba(160,24,70,0.45)"], [0.4, "rgba(60,10,32,0.22)"], [1, "rgba(20,4,12,0)"]]
+        : [[0, "rgba(210,30,90,0.55)"], [0.4, "rgba(90,16,48,0.28)"], [1, "rgba(40,8,24,0)"]]);
+    fillRad(ctx, w * 0.82, h * 0.55, w * 0.36, day
+      ? [[0, "rgba(90,40,80,0.16)"], [1, "rgba(90,40,80,0)"]]
+      : [[0, night ? "rgba(4,2,10,0.9)" : "rgba(6,4,14,0.88)"], [0.6, "rgba(8,6,16,0.4)"], [1, "rgba(8,6,16,0)"]]);
+    fillRad(ctx, w * 0.18, h * 0.96, w * 0.85, day
+      ? [[0, "rgba(80,200,185,0.45)"], [0.5, "rgba(160,230,220,0.16)"], [1, "rgba(180,240,230,0)"]]
+      : [[0, night ? "rgba(4,40,40,0.9)" : "rgba(6,78,76,0.9)"], [0.45, "rgba(4,32,36,0.45)"], [1, "rgba(4,16,20,0)"]]);
+    return;
+  }
+  if (part === "ribbon") {
+    strokeTube(ctx, (pen) => traceRibbon(pen, w, h), ribbonLayers(appearance), u);
+    return;
+  }
+  if (part === "peach") {
+    const peach = day
+      ? ([[0, "rgba(255,252,248,0.98)"], [0.18, "rgba(255,220,200,0.92)"], [0.4, "rgba(255,170,160,0.55)"], [0.62, "rgba(220,120,140,0.16)"], [1, "rgba(255,180,180,0)"]] as const)
+      : night
+        ? ([[0, "rgba(255,236,220,0.88)"], [0.16, "rgba(240,170,140,0.7)"], [0.38, "rgba(190,70,90,0.4)"], [0.6, "rgba(80,16,36,0.12)"], [1, "rgba(40,8,16,0)"]] as const)
+        : ([[0, "rgba(255,252,248,1)"], [0.14, "rgba(255,214,186,0.98)"], [0.34, "rgba(255,140,130,0.8)"], [0.55, "rgba(176,40,70,0.35)"], [1, "rgba(90,12,36,0)"]] as const);
+    fillRad(ctx, w * 0.32, h * 0.64, Math.min(w, h) * 0.44, peach);
+    fillRad(ctx, w * 0.24, h * 0.6, Math.min(w, h) * 0.14, day
+      ? [[0, "rgba(255,255,255,0.95)"], [0.55, "rgba(255,240,230,0.25)"], [1, "rgba(255,240,230,0)"]]
+      : [[0, "rgba(255,255,255,0.95)"], [0.5, "rgba(255,236,220,0.35)"], [1, "rgba(255,236,220,0)"]]);
+    strokeTube(ctx, (pen) => traceLip(pen, w, h), lipLayers(appearance), u);
+    return;
+  }
+  strokeTube(ctx, (pen) => traceFold(pen, w, h), foldLayers(appearance), u);
+}
+
+function LiquidCanvas({ part, appearance }: { part: LiquidPart; appearance: Appearance }): JSX.Element {
+  const ref = useRef<HTMLCanvasElement | null>(null);
+  useEffect(() => {
+    const canvas = ref.current;
+    if (!canvas) return;
+    const paint = (): void => {
+      const parent = canvas.parentElement;
+      const width = parent?.clientWidth ?? 0;
+      const height = parent?.clientHeight ?? 0;
+      if (width < 2 || height < 2) return;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) return;
+      const ratio = Math.min(typeof window !== "undefined" && window.devicePixelRatio ? window.devicePixelRatio : 1, 2);
+      canvas.width = Math.floor(width * ratio);
+      canvas.height = Math.floor(height * ratio);
+      ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
+      ctx.clearRect(0, 0, width, height);
+      paintLiquid(ctx, width, height, part, appearance);
+    };
+    paint();
+    const parent = canvas.parentElement;
+    if (!parent) return;
+    const observer = new ResizeObserver((): void => {
+      paint();
+    });
+    observer.observe(parent);
+    return (): void => {
+      observer.disconnect();
+    };
+  }, [part, appearance]);
+  return (
+    <canvas
+      ref={ref}
+      aria-hidden
+      style={{ position: "absolute", inset: 0, width: "100%", height: "100%", pointerEvents: "none" }}
+    />
+  );
+}
+
+/**
+ * Color stage. Three sheets drift on their own 14–20s loops.
+ * The veil does not drift, so the name keeps its contrast.
+ */
+function ColorStage(): JSX.Element {
+  const look = useBillboardLook();
+  const appearance = look.appearance;
+  return (
+    <div aria-hidden style={STAGE_FRAME}>
+      <LiquidCanvas part="ground" appearance={appearance} />
+      <Drift name="flowA" style={FLOW_FRAME}>
+        <LiquidCanvas part="ribbon" appearance={appearance} />
+      </Drift>
+      <Drift name="flowB" style={FLOW_FRAME}>
+        <LiquidCanvas part="peach" appearance={appearance} />
+      </Drift>
+      <Drift name="flowC" style={FLOW_FRAME}>
+        <LiquidCanvas part="teal" appearance={appearance} />
+      </Drift>
+      <Drift
+        name="flowD"
+        style={{
+          position: "absolute",
+          left: "6%",
+          top: "40%",
+          width: "52%",
+          height: "24%",
+          borderRadius: "50%",
+          background: look.dark
+            ? "radial-gradient(ellipse at 40% 40%, rgba(255,255,255,0.55), rgba(170,240,255,0.18) 46%, rgba(170,240,255,0) 72%)"
+            : "radial-gradient(ellipse at 40% 40%, rgba(255,255,255,0.7), rgba(255,255,255,0.12) 48%, rgba(255,255,255,0) 72%)",
+          filter: "blur(18px)",
+          mixBlendMode: "screen",
+          opacity: look.appearance === "night" ? 0.4 : look.dark ? 0.55 : 0.35,
+          pointerEvents: "none",
+        }}
+      />
+      <div style={{ position: "absolute", inset: 0, background: look.dark ? COLOR_VEIL_DARK : COLOR_VEIL_LIGHT, pointerEvents: "none" }} />
+    </div>
+  );
+}
+
+/**
+ * Graphite stage. Neutral blooms and a soft sheen only — no hairline lattice.
+ * The same slow drift the color sheets use is not required here; the blooms
+ * already travel on their own long loop.
+ */
+function GraphiteStage(): JSX.Element {
   const look = useBillboardLook();
   const dark = look.dark;
   const night = look.appearance === "night";
-  const ruleA = dark ? RULE_W50 : RULE_K50;
-  const ruleB = dark ? RULE_W30 : RULE_K30;
-  const ruleC = dark ? RULE_W40 : RULE_K40;
-  const ruleD = dark ? RULE_W25 : RULE_K22;
   const band = dark ? BAND_DARK : BAND_LIGHT;
-  const scrim = !dark ? (look.stage === "color" ? SCRIM_COLOR_LIGHT : SCRIM_LIGHT) : look.stage === "color" ? SCRIM_COLOR_DARK : night ? SCRIM_NIGHT : SCRIM_DARK;
-  const hair = (top: string, left: string, length: "h" | "v"): CSSProperties =>
-    length === "h"
-      ? { position: "absolute", left: 0, right: 0, top, height: 1, pointerEvents: "none" }
-      : { position: "absolute", top: 0, bottom: 0, left, width: 1, pointerEvents: "none" };
+  const scrim = !dark ? SCRIM_LIGHT : night ? SCRIM_NIGHT : SCRIM_DARK;
   return (
-    <div aria-hidden style={{ position: "absolute", inset: 0, zIndex: 0, pointerEvents: "none", overflow: "hidden" }}>
+    <div aria-hidden style={STAGE_FRAME}>
       {night ? <div style={{ position: "absolute", inset: 0, background: NIGHT_VEIL, pointerEvents: "none" }} /> : null}
       {stageBlooms(look).map((bloom) => (
         <Drift
@@ -1018,37 +1301,6 @@ function Stage(): JSX.Element {
           }}
         />
       ))}
-      <div style={{ ...hair("18%", "0", "h"), background: ruleB }} />
-      <div style={{ ...hair("38%", "0", "h"), background: ruleA }} />
-      <div style={{ ...hair("62%", "0", "h"), background: ruleB }} />
-      <div style={{ ...hair("82%", "0", "h"), background: ruleD }} />
-      <div style={{ ...hair("0", "22%", "v"), background: ruleC }} />
-      <div style={{ ...hair("0", "48%", "v"), background: ruleD }} />
-      <div style={{ ...hair("0", "70%", "v"), background: ruleC }} />
-      <div
-        style={{
-          position: "absolute",
-          left: "-10%",
-          top: "28%",
-          width: "130%",
-          height: 1,
-          background: ruleA,
-          transform: "rotate(-14deg)",
-          pointerEvents: "none",
-        }}
-      />
-      <div
-        style={{
-          position: "absolute",
-          left: "-10%",
-          top: "70%",
-          width: "130%",
-          height: 1,
-          background: ruleC,
-          transform: "rotate(11deg)",
-          pointerEvents: "none",
-        }}
-      />
       <Drift
         name="bandA"
         style={{
@@ -1058,7 +1310,7 @@ function Stage(): JSX.Element {
           top: "10%",
           height: 96,
           background: band,
-          opacity: look.stage === "color" ? (dark ? 0.18 : 0.14) : night ? 0.32 : dark ? 0.42 : 0.28,
+          opacity: night ? 0.32 : dark ? 0.42 : 0.28,
           transform: "rotate(-6deg)",
           transformOrigin: "left center",
           pointerEvents: "none",
@@ -1073,7 +1325,7 @@ function Stage(): JSX.Element {
           top: "48%",
           height: 72,
           background: band,
-          opacity: look.stage === "color" ? (dark ? 0.12 : 0.1) : night ? 0.24 : dark ? 0.34 : 0.22,
+          opacity: night ? 0.24 : dark ? 0.34 : 0.22,
           transform: "rotate(7deg)",
           transformOrigin: "left center",
           pointerEvents: "none",
@@ -1082,6 +1334,12 @@ function Stage(): JSX.Element {
       <div style={{ position: "absolute", inset: 0, background: scrim, pointerEvents: "none" }} />
     </div>
   );
+}
+
+function Stage(): JSX.Element {
+  const look = useBillboardLook();
+  if (look.stage === "color") return <ColorStage />;
+  return <GraphiteStage />;
 }
 
 function pageStyle(look: BillboardLook): CSSProperties {
