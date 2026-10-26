@@ -11,21 +11,24 @@ import { useGrokTheme, Image, useEffect, useRef, useState, type CSSProperties, t
  * Type is one see-through face: silver at 0.82 on a dark device, near-solid
  * graphite on a light device, plus the now-playing legibility shadow. Dark
  * still shows the field through the strokes. Day is dense enough to read on
- * paper. Same face for the hero, the handle, the bio, tile titles,
- * descriptions, chips, and the footer. No forced uppercase, no wide tracking.
+ * paper. Same face for the hero, the handle, the bio, and the footer.
+ * Tile titles, descriptions, and chips use that face a step greyer so they
+ * sit in the glass on both devices. No forced uppercase, no wide tracking.
  * The display name is those letterforms only — no pane, tile, or pill behind it.
  * Weight and size carry the hierarchy: name, then handle, then bio.
- * Tiles and chips lift, wash, and press. The rim is one rounded rect: a soft
- * specular lip and a milky body, not a second corner stroke.
+ * Tiles and chips lift, wash, and press. The rim is one rounded rect: a crisp
+ * specular lip and a clearer body, not a second corner stroke.
  * Graphite plus silver is an animated lumen field: slow blooms and a drifting sheen.
  * The glass edge comes from blooms, diagonal bands, and the scrim. Those blooms stay neutral.
  * Color, or any named accent, replaces that field with photoreal liquid-silk plates
  * (teal folds, a cyan ribbon, a peach drop). Silver on color keeps the plates' own palette.
  * A named accent hue-shifts the silk. Day keys those plates onto a paper base.
  * Dark keeps the studio plates. Both follow the device. Not lacquer.
- * The page ground is that same stage base, full-bleed: day paper, dark
- * charcoal, graphite the device field. Viewport, host peek, and overscroll
- * meet the field. Theme white is not a frame around it.
+ * The page ground is that same stage base, full-bleed on all four sides:
+ * day paper, dark charcoal, graphite the device field. The page box is the
+ * viewport, not the 500px column, so the plates reach the left and right
+ * edges. Viewport, host peek, and overscroll meet the field. Theme white
+ * is not a frame around it.
  * No hairline grid.
  * APPEARANCE is not a setup lock. The page follows the opener's device
  * (host light is day, host dark is the charcoal field). A baked night, dark,
@@ -134,18 +137,18 @@ const AVATAR_SIZE = 60;
  * Bezel stays inside the corner radius. A bezel wider than the radius cusps
  * the rim and reads as a stepped second corner.
  */
-const TILE_DIAL = { blur: 1, refraction: 110, bezel: 15, radius: 20, frost: 0.58, saturation: 1.75, specular: 0.95 };
-const CHIP_DIAL = { blur: 1, refraction: 52, bezel: 13, radius: 999, frost: 0.5, saturation: 1.7, specular: 0.88 };
+const TILE_DIAL = { blur: 1, refraction: 110, bezel: 15, radius: 20, frost: 0.46, saturation: 1.48, specular: 1 };
+const CHIP_DIAL = { blur: 1, refraction: 52, bezel: 13, radius: 999, frost: 0.4, saturation: 1.42, specular: 0.96 };
 
 /**
  * Top-lit volume. White milk at the crown, a clearer mid, a darker foot.
  * A flat grey slab reads as glassmorphism; this lets the stage bend through.
  * Day smoke sits under that crown so the bubble stays glass, not a white sheet.
  */
-const TINT_GRAD_DARK = "linear-gradient(180deg, rgba(255,255,255,0.18) 0%, rgba(36,38,48,0.18) 38%, rgba(8,10,16,0.50) 100%)";
-const TINT_GRAD_LIGHT = "linear-gradient(180deg, rgba(255,255,255,0.22) 0%, rgba(118,122,130,0.16) 42%, rgba(72,76,84,0.24) 100%)";
-const MILK_DARK = "radial-gradient(92% 78% at 50% 0%, rgba(255,255,255,0.22), rgba(255,255,255,0.06) 44%, rgba(255,255,255,0) 72%)";
-const MILK_LIGHT = "radial-gradient(92% 78% at 50% 0%, rgba(255,255,255,0.36), rgba(255,255,255,0.08) 46%, rgba(36,40,48,0.05) 74%)";
+const TINT_GRAD_DARK = "linear-gradient(180deg, rgba(255,255,255,0.07) 0%, rgba(16,26,32,0.08) 42%, rgba(4,10,14,0.26) 100%)";
+const TINT_GRAD_LIGHT = "linear-gradient(180deg, rgba(255,255,255,0.32) 0%, rgba(206,212,218,0.12) 46%, rgba(58,64,72,0.18) 100%)";
+const MILK_DARK = "radial-gradient(78% 36% at 50% 0%, rgba(255,255,255,0.18), rgba(255,255,255,0.04) 24%, rgba(255,255,255,0) 50%)";
+const MILK_LIGHT = "radial-gradient(78% 34% at 50% 0%, rgba(255,255,255,0.44), rgba(255,255,255,0.07) 22%, rgba(36,40,48,0.03) 52%)";
 const CLEAR = "rgba(0,0,0,0)";
 const WHITE = "rgba(255,255,255,1)";
 /** Faint liqui highlight wash. White at 13% sits in the asked 10–15% band. */
@@ -155,15 +158,15 @@ const HOVER_WASH = `color-mix(in srgb, ${WHITE} 13%, ${CLEAR})`;
  * Concentric falloff only. A 1px ring doubles the baked specular, and an
  * offset inset draws a second arc at the corner. The lip lives in the map.
  */
-const SHINE_DARK = "inset 0 0 28px rgba(255,255,255,0.12)";
-const SHINE_LIGHT = "inset 0 0 20px rgba(255,255,255,0.20)";
+const SHINE_DARK = "inset 0 0 8px rgba(255,255,255,0.24)";
+const SHINE_LIGHT = "inset 0 0 7px rgba(255,255,255,0.34)";
 const ELEVATED_DARK = "0 28px 64px rgba(0,0,5,0.62), 0 4px 14px rgba(0,0,5,0.38)";
 const ELEVATED_LIGHT = "0 24px 60px rgba(16,16,20,0.28), 0 4px 14px rgba(16,16,20,0.14)";
 const ELEVATED_HOVER_DARK = "0 40px 78px rgba(0,0,5,0.76), 0 14px 28px rgba(0,0,5,0.5)";
 const ELEVATED_HOVER_LIGHT = "0 34px 70px rgba(16,16,20,0.36), 0 12px 24px rgba(16,16,20,0.2)";
 const SHEEN =
   "linear-gradient(118deg, rgba(255,255,255,0.50) 0%, rgba(255,255,255,0.08) 20%, rgba(255,255,255,0) 48%, rgba(255,255,255,0) 72%, rgba(255,255,255,0.26) 100%)";
-const SHEEN_BLUR = "blur(5px)";
+const SHEEN_BLUR = "blur(2px)";
 const AVATAR_RING_DARK = "0 0 0 2px rgba(255,255,255,0.88), 0 10px 24px rgba(0,0,0,0.45)";
 const AVATAR_RING_LIGHT = "0 0 0 2px rgba(16,16,20,0.88), 0 10px 24px rgba(16,16,20,0.16)";
 const ICON_RING_DARK = "inset 0 0 0 1px rgba(255,255,255,0.28)";
@@ -195,6 +198,17 @@ const SEE_MIX = "82%";
 const SEE_DAY_MIX = "96%";
 const SEE_DARK = `color-mix(in srgb, ${SILVER} ${SEE_MIX}, ${CLEAR})`;
 const SEE_DAY = `color-mix(in srgb, ${GRAPHITE} ${SEE_DAY_MIX}, ${CLEAR})`;
+/**
+ * Tile and chip ink. Same see-through mix as the hero, on a greyer silver
+ * and a greyer graphite, so the copy sits in the pane. Opaque near-black
+ * stamps the glass. A clearer mix lets the silk chroma take the strokes.
+ */
+const TILE_SILVER = "#d5dae1";
+const TILE_GRAPHITE = "#3a4048";
+const TILE_SEE_MIX = "86%";
+const TILE_SEE_DAY_MIX = "92%";
+const TILE_SEE_DARK = `color-mix(in srgb, ${TILE_SILVER} ${TILE_SEE_MIX}, ${CLEAR})`;
+const TILE_SEE_DAY = `color-mix(in srgb, ${TILE_GRAPHITE} ${TILE_SEE_DAY_MIX}, ${CLEAR})`;
 const FOCUS_NONE = "none";
 type AccentName = "silver" | "rose" | "sage" | "violet" | "amber" | "teal";
 type NamedAccent = Exclude<AccentName, "silver">;
@@ -387,8 +401,8 @@ function glassImages(
     const cosDiffuse = Math.cos(DIFFUSE_SPREAD);
     // Highlight feathers inward across the bezel on this same outline.
     // No second dark stroke — that read as a stepped rim.
-    const lip = Math.max(8, safeBezel * 0.8);
-    const reach = 7 + safeBezel * 0.4;
+    const lip = Math.max(5, safeBezel * 0.5);
+    const reach = 4 + safeBezel * 0.24;
     const compose = (
       out: Uint8ClampedArray,
       i: number,
@@ -417,20 +431,22 @@ function glassImages(
         surfaceField(px, py, specBx, specBy, specR, field);
         const sd = field.sd;
         if (sd > 1 || sd < -(reach + 1)) continue;
-        const coverage = sat(0.55 - sd);
+        const coverage = sat(0.42 - sd);
         const vertical = Math.abs(field.ny);
         const directional = Math.pow(sat((vertical - cosLight) / (1 - cosLight)), 1.15);
         const diffuseDir = Math.pow(sat((vertical - cosDiffuse) / (1 - cosDiffuse)), 1.15);
         const into = sat(-sd / lip);
         // One lip. A dark hairline beside this feather reads as a second stroke.
-        const feather = sat(0.65 - sd) * Math.pow(1 - into, 1.7);
-        let specAmount = directional * feather;
-        specAmount = specAmount / (1 + 0.35 * (1 - specAmount));
+        // The edge term keeps the sides as crisp as the crown, still on this outline.
+        const feather = sat(0.38 - sd) * Math.pow(1 - into, 2.15);
+        const edge = sat(0.72 - sd) * Math.pow(1 - into, 2.45);
+        let specAmount = directional * feather + edge * 0.82 * (1 - directional * 0.4);
+        specAmount = specAmount / (1 + 0.2 * (1 - specAmount));
         const glow = 1 - sat(-sd / reach);
-        const diffuse = diffuseDir * 0.34 * glow * glow * coverage;
+        const diffuse = diffuseDir * 0.2 * glow * glow * coverage;
         const i = (y * specW + x) * 4;
-        compose(lightImage.data, i, specAmount, diffuse, 0, 1, 0.9, 0);
-        compose(darkImage.data, i, specAmount, diffuse, 0, 0.92, 0.42, 0);
+        compose(lightImage.data, i, specAmount, diffuse, 0, 1.04, 0.7, 0);
+        compose(darkImage.data, i, specAmount, diffuse, 0, 1.14, 0.5, 0);
       }
     }
     lightCtx.putImageData(lightImage, 0, 0);
@@ -571,7 +587,7 @@ function GlassPane({
         boxSizing: "border-box",
         borderRadius: radius,
         textDecoration: "none",
-        color: look.ink,
+        color: look.glassInk,
         cursor: "pointer",
         transform,
         transformOrigin: "center",
@@ -616,7 +632,7 @@ function GlassPane({
             background: SHEEN,
             mixBlendMode: "screen",
             filter: SHEEN_BLUR,
-            opacity: dark ? 0.72 : 0.22,
+            opacity: dark ? 0.36 : 0.14,
           }}
         />
         {shot ? (
@@ -709,6 +725,8 @@ type BillboardLook = {
   /** A dark device uses the dark glass stack. A light device uses the day stack. */
   dark: boolean;
   ink: string;
+  /** Tile titles, descriptions, and chips. A greyer step of the same face. */
+  glassInk: string;
   bg: string;
   well: string;
   accent: AccentName;
@@ -757,12 +775,14 @@ function useBillboardLook(): BillboardLook {
   const accent = resolveAccent(ACCENT);
   // See-through body ink. theme.text.primary stays near-black in both kinds and stamps the glass.
   const ink = dark ? SEE_DARK : SEE_DAY;
+  const glassInk = dark ? TILE_SEE_DARK : TILE_SEE_DAY;
   return {
     theme,
     appearance,
     stage,
     dark,
     ink,
+    glassInk,
     bg: theme.bg.base,
     well: theme.fill.secondary,
     accent,
@@ -924,7 +944,11 @@ function stageBlooms(look: BillboardLook): BloomSpec[] {
 }
 
 const STAGE_FRAME: CSSProperties = {
-  position: "absolute",
+  // Fixed to the viewport. An absolute stage only paints the page box, and
+  // that box shrink-wraps to the 500px column when the host sizes from
+  // content — left and right then stay host ground. Fixed covers the
+  // viewport even when a centered column clips the page.
+  position: "fixed",
   inset: 0,
   zIndex: 0,
   pointerEvents: "none",
@@ -1119,8 +1143,9 @@ function stageGround(look: BillboardLook): string {
 }
 
 /**
- * Paint the canvas document with the stage ground so rubber-band overscroll
- * matches the field instead of flashing theme white.
+ * Paint the canvas document with the stage ground and drop the default
+ * body margin so rubber-band overscroll and the viewport edge match the
+ * field instead of flashing theme white.
  */
 function useStageDocument(ground: string): void {
   useEffect(() => {
@@ -1128,13 +1153,25 @@ function useStageDocument(ground: string): void {
     const html = document.documentElement;
     const body = document.body;
     if (!html || !body) return;
-    const prevHtml = html.style.background;
-    const prevBody = body.style.background;
+    const prevHtml = html.style.cssText;
+    const prevBody = body.style.cssText;
     html.style.background = ground;
     body.style.background = ground;
+    html.style.margin = "0";
+    body.style.margin = "0";
+    html.style.padding = "0";
+    body.style.padding = "0";
+    html.style.minHeight = "100%";
+    body.style.minHeight = "100%";
+    html.style.width = "100%";
+    body.style.width = "100%";
+    // 100dvw can be a hair wider than the layout viewport. Clip that
+    // instead of opening a horizontal scrollport beside the silk.
+    html.style.overflowX = "clip";
+    body.style.overflowX = "clip";
     return () => {
-      html.style.background = prevHtml;
-      body.style.background = prevBody;
+      html.style.cssText = prevHtml;
+      body.style.cssText = prevBody;
     };
   }, [ground]);
 }
@@ -1143,11 +1180,17 @@ function pageStyle(look: BillboardLook): CSSProperties {
   const ground = stageGround(look);
   return {
     position: "relative",
-    width: "100%",
-    maxWidth: "100%",
+    // Definite viewport width. width 100% shrink-wraps to the 500px column
+    // when the host sizes the canvas from its content, and the plates stop
+    // at that column. 100dvw is the viewport. The breakout margins recenter
+    // that box inside a centered max-width ancestor.
+    width: "100dvw",
+    maxWidth: "100dvw",
+    minWidth: "100dvw",
+    marginLeft: "calc(50% - 50dvw)",
+    marginRight: "calc(50% - 50dvw)",
     // 100% fills a sized host. 100dvh covers a short page when the parent
-    // height is auto and percentage min-height collapses. The stage is
-    // absolute inset 0, so it covers this box.
+    // height is auto and percentage min-height collapses.
     minHeight: "max(100%, 100dvh)",
     // clip does not force a vertical scrollport, so the column still scrolls
     // with the document.
@@ -1234,7 +1277,7 @@ function InstallTile({ bot }: { bot: Bot }): JSX.Element {
                 ...theme.font.heading1,
                 ...FORE,
                 fontFamily: theme.font.family,
-                color: look.ink,
+                color: look.glassInk,
                 // 22px floor: a title beside the 64px icon stays inside a 320–390px column. Desktop still caps at 30.
                 fontSize: "clamp(22px, 5.6vw, 30px)",
                 lineHeight: 1.05,
@@ -1262,7 +1305,7 @@ function InstallTile({ bot }: { bot: Bot }): JSX.Element {
               ...theme.font.body1,
               ...FORE,
               fontFamily: theme.font.family,
-              color: look.ink,
+              color: look.glassInk,
               fontSize: 14,
               lineHeight: 1.35,
               fontWeight: theme.weight.medium,
@@ -1313,7 +1356,7 @@ function MiniLink({ link }: { link: Link }): JSX.Element {
         ...theme.font.subtext,
         fontFamily: theme.font.family,
         letterSpacing: "0",
-        color: look.ink,
+        color: look.glassInk,
       }}
       children={[
         label.length > 0 ? (
@@ -1322,7 +1365,7 @@ function MiniLink({ link }: { link: Link }): JSX.Element {
             style={{
               ...CHIP_LINE,
               fontFamily: theme.font.family,
-              color: look.ink,
+              color: look.glassInk,
               fontWeight: theme.weight.semibold,
               letterSpacing: "0",
               textShadow: "var(--bb-ink-shadow)",
@@ -1338,7 +1381,7 @@ function MiniLink({ link }: { link: Link }): JSX.Element {
             style={{
               ...CHIP_LINE,
               fontFamily: theme.font.family,
-              color: look.ink,
+              color: look.glassInk,
               letterSpacing: "0",
               textShadow: "var(--bb-ink-shadow)",
               transition: `text-shadow ${MOTION}`,
