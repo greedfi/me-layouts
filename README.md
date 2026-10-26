@@ -48,12 +48,12 @@ Do not leave the example placeholders in a filled page. Do not add a second sour
 
 Billboard only — `APPEARANCE`, `STAGE`, and `ACCENT` (other packs ignore them):
 
-- `night` — deeper black field, cooler silver blooms.
+- `night` — deeper field. Graphite keeps cooler silver blooms. Color deepens the same silk plates.
 - `dark` — charcoal graphite, the shipped X / .promo / .mail field. A dark viewer who leaves the token lands here, not on `night`.
 - `day` — light paper. `light` is an alias. A light viewer who leaves the token lands here.
-- `graphite` — neutral blooms and a slow sheen over hard rules. This is the default `STAGE`.
-- `color` — the same field with muted multi-hue blooms. `colour` is an alias. Not the loud liquid ribbons, not lacquer, not accent blue.
-- `silver` — current focus ring, hover wash, and chip tint. Default `ACCENT`. `rose`, `sage`, `violet`, `amber`, and `teal` recolor those three spots. Teal is a restrained cyan. Not lacquer, not accent blue.
+- `graphite` — neutral blooms and a slow sheen. This is the default `STAGE`. No hairline grid.
+- `color` — photoreal liquid-silk plates (teal folds, a cyan ribbon, a peach drop) instead of soft blooms. Day and night change the exposure. `colour` is an alias. Not lacquer, not a hairline grid, not accent blue.
+- `silver` — no accent hue. On `graphite` the stage stays the neutral device field. On `color` the silk keeps its own palette. Default `ACCENT`. `rose`, `sage`, `violet`, `amber`, and `teal` hue-shift the silk and still recolor focus, hover, and chip tint. A named accent also turns the stage to silk when `STAGE` is still graphite. Teal is a restrained cyan. Not lacquer, not accent blue.
 
 The stage always loops a slow drift. A viewer who asks for reduced motion gets the resting pose. Do not add an on-page switch for these.
 
@@ -112,7 +112,7 @@ Templates normalize at render: a missing `@` is added, an existing `@` is kept. 
 ## What each pack is
 
 - **Stack** — centered header (avatar, name, handle, bio), equal bot cards (64px icon, Install pill), Quiet Links, footer. A subtle `BrandWash` canvas sits behind the column. That paint function is the only place hex is allowed.
-- **Billboard** — small avatar, oversized display name, handle, bio, full-width loud Install tiles, a short link row, footer. No pack wordmark and no kicker. The display name is the same see-through face as the tile copy, in the case it was filled, with no pane behind it. Tiles and link chips are liquid-glass panes (frost, specular rim, blur) over an animated lumen field: blooms, a drifting sheen, and hard rules. `STAGE` `color` swaps in muted blooms. `STAGE` `graphite` keeps neutral blooms. `APPEARANCE` picks `night`, `dark`, or `day`. `ACCENT` picks `silver` (default), `rose`, `sage`, `violet`, `amber`, or `teal`. Unset appearance follows the viewer and a dark viewer stays on the charcoal field; unset stage stays graphite; unset accent stays silver.
+- **Billboard** — small avatar, oversized display name, handle, bio, full-width loud Install tiles, a short link row, footer. No pack wordmark and no kicker. The display name is the same see-through face as the tile copy, in the case it was filled, with no pane behind it. Tiles and link chips are liquid-glass panes (frost, specular rim, blur) over an animated field. `STAGE` `graphite` keeps neutral blooms and a drifting sheen. `STAGE` `color`, or any named accent, swaps in photoreal liquid-silk plates. No hairline grid. `APPEARANCE` picks `night`, `dark`, or `day`. `ACCENT` picks `silver` (default), `rose`, `sage`, `violet`, `amber`, or `teal`. Unset appearance follows the viewer and a dark viewer stays on the charcoal field; unset stage stays graphite; unset accent stays silver.
 - **Magazine** — left editorial header, first bot as the featured Install hero, later bots as compact rows, Links, footer.
 - **Terminal** — monospace page (`theme.font.mono` + `theme.font.code`), `#` comment bio, dense `[install]` rows, minimal chrome.
 - **Bento** — asymmetric mosaic: avatar/name in one cell, bio in another, bots[0] as a large featured Install tile, later bots as compact chips, links as thin bars in a mosaic cell, footer.
@@ -128,6 +128,6 @@ Templates normalize at render: a missing `@` is added, an existing `@` is kept. 
 - No Duo frame and no phone chrome (no status bar, no home indicator, no device bezel).
 - No `fetch`, no network, no remote image URLs. Avatars and icons are `data:image/...` after fill. Until fill, the placeholders are not fetched.
 - Mobile-first: width 100%, max width 440–520 centered, `env(safe-area-inset-*)` padding, touch targets at least 44px, no horizontal overflow at 320px. Text wrappers use `minWidth: 0` and `overflowWrap`.
-- Colors come from `useGrokTheme()`. Stack's `BrandWash` canvas may use hex. Billboard's liquid-glass panes keep module-level material constants (rgba). Its default graphite blooms use theme ink. `night` and `STAGE` `color` use muted module-level rgba on the stage only — never `theme.accent`, never lacquer. `ACCENT` (`silver`, `rose`, `sage`, `violet`, `amber`, `teal`; unset `silver`) recolors focus, hover, and chip tint from module constants, not `theme.accent`. Do not add a theme toggle, device chrome, or a second copy of the fill tokens.
+- Colors come from `useGrokTheme()`. Stack's `BrandWash` canvas may use hex. Billboard's liquid-glass panes keep module-level material constants (rgba). Its default graphite blooms use theme ink. `STAGE` `color` and named accents use baked silk plates on the stage only, hue-shifted per accent — never `theme.accent`, never lacquer, never a stage grid. `ACCENT` (`silver`, `rose`, `sage`, `violet`, `amber`, `teal`; unset `silver`) still recolors focus, hover, and chip tint from module constants, not `theme.accent`. Do not add a theme toggle, device chrome, or a second copy of the fill tokens.
 - Install hrefs must be real `https://x.ai/bot/...` URLs after fill.
 - Leave `export default function App` and `export const LAYOUT` in place.
