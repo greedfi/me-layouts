@@ -5,7 +5,8 @@
  * Look tracks layouts/billboard/page.canvas.tsx. Fill this file the same way
  * the canvas pack is filled: the string initializers below appear once each.
  * Replace the whole bots array and the whole links array. Leave the rest.
- * PAGE_TITLE is the browser tab. Fill it with the username, or the display name.
+ * PAGE_TITLE is the browser tab and the unfurl title. Fill it with this user's username, or the display name.
+ * OG_IMAGE_URL is an absolute https URL of this user's own avatar file, not a data URI and not a silk plate.
  * GA_MEASUREMENT_ID and META_PIXEL_ID stay placeholders unless the owner opts in later.
  * APPEARANCE is ignored. Day and dark follow prefers-color-scheme.
  * Silk plates are local files under assets/. Do not point them at a CDN.
@@ -20,6 +21,7 @@ const APPEARANCE = "__APPEARANCE__";
 const STAGE = "__STAGE__";
 const ACCENT = "__ACCENT__";
 const PAGE_TITLE = "__PAGE_TITLE__";
+const OG_IMAGE_URL = "__OG_IMAGE_URL__";
 const GA_MEASUREMENT_ID = "__GA_MEASUREMENT_ID__";
 const META_PIXEL_ID = "__META_PIXEL_ID__";
 
