@@ -1,4 +1,4 @@
-import { useGrokTheme, Image, useEffect, useRef, useState, type CSSProperties, type ReactNode } from "grok/canvas";
+import { useGrokTheme, Image, useEffect, useRef, useState, type CSSProperties, type PointerEvent, type ReactNode } from "grok/canvas";
 
 /**
  * Pinned .me pack — billboard.
@@ -6,7 +6,10 @@ import { useGrokTheme, Image, useEffect, useRef, useState, type CSSProperties, t
  * Header is those four fields only — no pack wordmark, no kicker.
  * Tiles and chips are a liqui lens (displacement + frost + specular + tint).
  * Avatar and icons stay solid. Install is a solid silver control, not a lens and not a blue accent.
- * Type is liqui on glass: crisp primary, dim secondary, a soft legibility shadow. No stamp slabs.
+ * Type is liqui on glass: primary ink, secondary at 0.55 of that ink, the now-playing
+ * legibility shadow, tight semibold titles, and a restrained lens drop-shadow so
+ * tile titles and Install sit in the glass instead of on it.
+ * Tiles and chips lift, wash, and press. The Install pill rides the tile.
  * The stage is a dark field with hard rules so refraction has an edge to bend.
  * No photographed frost plates.
  * Replace the constants and the bots/links arrays. Leave the JSX alone. See README.md.
@@ -73,6 +76,9 @@ const CHIP_DIAL = { blur: 1, refraction: 45, bezel: 11, radius: 999, frost: 0.4,
 const TINT_GRAD_DARK = "linear-gradient(135deg, rgba(30,32,46,0.62), rgba(18,20,32,0.40))";
 const TINT_GRAD_LIGHT = "linear-gradient(135deg, rgba(255,255,255,0.48), rgba(255,255,255,0.14))";
 const CLEAR = "rgba(0,0,0,0)";
+const WHITE = "rgba(255,255,255,1)";
+/** Faint liqui highlight wash. White at 13% sits in the asked 10–15% band. */
+const HOVER_WASH = `color-mix(in srgb, ${WHITE} 13%, ${CLEAR})`;
 
 const SHINE_DARK = [
   "inset 0 1px 0 rgba(255,255,255,0.96)",
@@ -92,6 +98,8 @@ const SHINE_LIGHT = [
 ].join(", ");
 const ELEVATED_DARK = "0 28px 64px rgba(0,0,5,0.62), 0 4px 14px rgba(0,0,5,0.38)";
 const ELEVATED_LIGHT = "0 24px 60px rgba(16,16,20,0.28), 0 4px 14px rgba(16,16,20,0.14)";
+const ELEVATED_HOVER_DARK = "0 40px 78px rgba(0,0,5,0.76), 0 14px 28px rgba(0,0,5,0.5)";
+const ELEVATED_HOVER_LIGHT = "0 34px 70px rgba(16,16,20,0.36), 0 12px 24px rgba(16,16,20,0.2)";
 const CAUSTIC_EDGE = "1px solid rgba(0,0,0,0.90)";
 const SHEEN =
   "linear-gradient(128deg, rgba(255,255,255,0.82) 0%, rgba(255,255,255,0) 16%, rgba(255,255,255,0) 64%, rgba(255,255,255,0.62) 100%)";
@@ -113,21 +121,40 @@ const BAND_LIGHT = "linear-gradient(90deg, rgba(0,0,0,0), rgba(0,0,0,0.55), rgba
 const SCRIM_DARK = "linear-gradient(180deg, rgba(0,0,0,0.10), rgba(0,0,0,0) 38%, rgba(0,0,0,0.45))";
 const SCRIM_LIGHT = "linear-gradient(180deg, rgba(255,255,255,0.04), rgba(0,0,0,0) 40%, rgba(16,16,24,0.16))";
 
-/** Hero only. Two layers, not a black stamp stack. Liqui label shadow plus a soft drop. */
-const NAME_SHADOW_DARK = "0 1px 3px rgba(0,0,0,0.45), 0 12px 28px rgba(0,0,0,0.28)";
-const NAME_SHADOW_LIGHT = "0 1px 2px rgba(255,255,255,0.86), 0 10px 22px rgba(16,16,20,0.14)";
 /** now-playing micro labels: 0 1px 3px rgba(0,0,0,0.45). Light is the inverted lift. */
 const SOFT_SHADOW_DARK = "0 1px 3px rgba(0,0,0,0.45)";
 const SOFT_SHADOW_LIGHT = "0 1px 2px rgba(255,255,255,0.78)";
+/**
+ * Conic button hover moves the label shadow onto a slight diagonal
+ * (0.025em 0.025em 0.025em). Same shift, kept strong enough to read on glass.
+ */
+const SOFT_SHADOW_HOVER_DARK = "0.025em 0.025em 0.05em rgba(0,0,0,0.55)";
+const SOFT_SHADOW_HOVER_LIGHT = "0.025em 0.025em 0.04em rgba(255,255,255,0.9)";
+/**
+ * Lens depth under the glyph. freefrontend's label is drop-shadow(0 25px 3px);
+ * these are the shorter falls so the shadow stays inside the hero, the tile, and the pill.
+ */
+const NAME_DROP_DARK = "drop-shadow(0 0.14em 0.03em rgba(0,0,0,0.55))";
+const NAME_DROP_LIGHT = "drop-shadow(0 0.14em 0.03em rgba(16,16,20,0.35))";
+const LENS_DROP_DARK = "drop-shadow(0 12px 2px rgba(0,0,0,0.4))";
+const LENS_DROP_HOVER_DARK = "drop-shadow(0 7px 2px rgba(0,0,0,0.5))";
+const LENS_DROP_LIGHT = "drop-shadow(0 12px 2px rgba(16,16,20,0.24))";
+const LENS_DROP_HOVER_LIGHT = "drop-shadow(0 7px 2px rgba(16,16,20,0.32))";
 /**
  * Solid Install fill. Silver on dark, graphite on light.
  * Flat meaning, never the host accent and never liqui's blue accent.
  */
 const SILVER = "#f4f5f7";
 const GRAPHITE = "#121214";
+/** Solid-button hover from liqui: white mixed 14% into the fill. */
+const PILL_FILL_HOVER_DARK = `color-mix(in srgb, ${WHITE} 14%, ${SILVER})`;
+const PILL_FILL_HOVER_LIGHT = `color-mix(in srgb, ${WHITE} 14%, ${GRAPHITE})`;
 const PILL_LIP = "inset 0 1px 0 rgba(255,255,255,0.55), inset 0 -1px 0 rgba(0,0,0,0.32)";
 const PILL_GLOSS = "linear-gradient(180deg, rgba(255,255,255,0.42), rgba(255,255,255,0))";
 const FOCUS_NONE = "none";
+/** liqui button: transition-[transform,box-shadow] duration-150. */
+const MOTION = "150ms ease";
+const TYPE_MOTION = `text-shadow ${MOTION}, filter ${MOTION}`;
 
 const LAYER: CSSProperties = {
   position: "absolute",
@@ -404,6 +431,8 @@ function GlassPane({
   }
   const filterId = idRef.current;
   const [shot, setShot] = useState<GlassShot | null>(null);
+  const [hovered, setHovered] = useState(false);
+  const [pressed, setPressed] = useState(false);
 
   useEffect(() => {
     const el = ref.current;
@@ -434,6 +463,25 @@ function GlassPane({
   const tintOpacity = 0.25 + 0.75 * dial.frost;
   const radius = dial.radius >= 999 ? 999 : dial.radius;
   const tone = toneTable(dial.frost);
+  const lift = kind === "tile" ? "-3px" : "-2px";
+  const transform = pressed ? "translateY(0) scale(0.97)" : hovered ? `translateY(${lift}) scale(1)` : "translateY(0) scale(1)";
+  const inkShadow = hovered ? (dark ? SOFT_SHADOW_HOVER_DARK : SOFT_SHADOW_HOVER_LIGHT) : dark ? SOFT_SHADOW_DARK : SOFT_SHADOW_LIGHT;
+  const lensDrop = hovered ? (dark ? LENS_DROP_HOVER_DARK : LENS_DROP_HOVER_LIGHT) : dark ? LENS_DROP_DARK : LENS_DROP_LIGHT;
+  // The pill inverts the page: dark pages put dark ink on silver, so they take the light-mode shadow.
+  const pillInk = dark
+    ? hovered
+      ? SOFT_SHADOW_HOVER_LIGHT
+      : SOFT_SHADOW_LIGHT
+    : hovered
+      ? SOFT_SHADOW_HOVER_DARK
+      : SOFT_SHADOW_DARK;
+  const pillFill = hovered ? (dark ? PILL_FILL_HOVER_DARK : PILL_FILL_HOVER_LIGHT) : dark ? SILVER : GRAPHITE;
+  const hotVars = {
+    "--bb-ink-shadow": inkShadow,
+    "--bb-lens-drop": lensDrop,
+    "--bb-pill-ink-shadow": pillInk,
+    "--bb-pill-fill": pillFill,
+  } as CSSProperties;
 
   return (
     <a
@@ -442,7 +490,21 @@ function GlassPane({
       target="_blank"
       rel="noreferrer"
       onFocus={onFocus}
-      onBlur={onBlur}
+      onBlur={(): void => {
+        setPressed(false);
+        onBlur();
+      }}
+      onMouseEnter={(): void => setHovered(true)}
+      onMouseLeave={(): void => setHovered(false)}
+      onPointerDown={(event: PointerEvent<HTMLAnchorElement>): void => {
+        setPressed(true);
+        event.currentTarget.setPointerCapture(event.pointerId);
+      }}
+      onPointerUp={(event: PointerEvent<HTMLAnchorElement>): void => {
+        setPressed(false);
+        if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId);
+      }}
+      onPointerCancel={(): void => setPressed(false)}
       style={{
         position: "relative",
         isolation: "isolate",
@@ -454,9 +516,15 @@ function GlassPane({
         borderRadius: radius,
         textDecoration: "none",
         color: theme.text.primary,
-        boxShadow: dark ? ELEVATED_DARK : ELEVATED_LIGHT,
+        cursor: "pointer",
+        transform,
+        transformOrigin: "center",
+        transition: `transform ${MOTION}, box-shadow ${MOTION}`,
+        boxShadow: hovered && !pressed ? (dark ? ELEVATED_HOVER_DARK : ELEVATED_HOVER_LIGHT) : dark ? ELEVATED_DARK : ELEVATED_LIGHT,
+        WebkitTapHighlightColor: CLEAR,
         outline: focused ? `2px solid ${dark ? SILVER : GRAPHITE}` : FOCUS_NONE,
         outlineOffset: 3,
+        ...hotVars,
         ...SQUIRCLE,
       }}
     >
@@ -532,7 +600,8 @@ function GlassPane({
           </svg>
         ) : null}
       </div>
-      <div style={{ position: "relative", zIndex: 3, boxSizing: "border-box", minWidth: 0, ...contentStyle }}>{children}</div>
+      <div aria-hidden style={{ ...LAYER, zIndex: 3, background: HOVER_WASH, opacity: hovered ? 1 : 0, transition: `opacity ${MOTION}` }} />
+      <div style={{ position: "relative", zIndex: 4, boxSizing: "border-box", minWidth: 0, ...contentStyle }}>{children}</div>
     </a>
   );
 }
@@ -541,6 +610,11 @@ function atHandle(raw: string): string {
   const trimmed = raw.trim();
   if (trimmed.length === 0) return "";
   return trimmed.startsWith("@") ? trimmed : `@${trimmed}`;
+}
+
+/** liqui `--lq-text-dim`: the same ink as primary, at 0.55. */
+function dimInk(ink: string): string {
+  return `color-mix(in srgb, ${ink} 55%, ${CLEAR})`;
 }
 
 function useFocusRing(): { focused: boolean; onFocus: () => void; onBlur: () => void } {
@@ -713,6 +787,9 @@ function pageStyle(theme: ReturnType<typeof useGrokTheme>): CSSProperties {
     background: theme.bg.base,
     color: theme.text.primary,
     fontFamily: theme.font.family,
+    fontSynthesis: "none",
+    WebkitFontSmoothing: "antialiased",
+    MozOsxFontSmoothing: "grayscale",
     boxSizing: "border-box",
   };
 }
@@ -780,9 +857,7 @@ function InstallTile({ bot }: { bot: Bot }): JSX.Element {
   const theme = useGrokTheme();
   const pane = useNarrowTile();
   const ring = useFocusRing();
-  const dark = theme.kind === "dark";
-  const fill = dark ? SILVER : GRAPHITE;
-  const label = dark ? GRAPHITE : SILVER;
+  const label = theme.kind === "dark" ? GRAPHITE : SILVER;
   return (
     <div ref={pane.ref} style={{ width: "100%", minWidth: 0 }}>
       <GlassPane
@@ -808,13 +883,16 @@ function InstallTile({ bot }: { bot: Bot }): JSX.Element {
               style={{
                 ...theme.font.heading1,
                 ...FORE,
+                fontFamily: theme.font.family,
                 color: theme.text.primary,
                 fontSize: "clamp(24px, 6.4vw, 30px)",
                 lineHeight: 1.05,
                 fontWeight: 700,
-                letterSpacing: "-0.02em",
+                letterSpacing: "-0.04em",
                 textTransform: "none",
-                textShadow: dark ? SOFT_SHADOW_DARK : SOFT_SHADOW_LIGHT,
+                textShadow: "var(--bb-ink-shadow)",
+                filter: "var(--bb-lens-drop)",
+                transition: TYPE_MOTION,
                 margin: 0,
                 flex: "1 1 auto",
                 minWidth: 0,
@@ -829,13 +907,15 @@ function InstallTile({ bot }: { bot: Bot }): JSX.Element {
             style={{
               ...theme.font.body1,
               ...FORE,
-              color: theme.text.secondary,
+              fontFamily: theme.font.family,
+              color: dimInk(theme.text.primary),
               fontSize: 14,
               lineHeight: 1.35,
               fontWeight: theme.weight.medium,
               letterSpacing: "0",
               textTransform: "none",
-              textShadow: dark ? SOFT_SHADOW_DARK : SOFT_SHADOW_LIGHT,
+              textShadow: "var(--bb-ink-shadow)",
+              transition: `text-shadow ${MOTION}`,
               margin: 0,
               overflowWrap: "anywhere",
             }}
@@ -847,10 +927,10 @@ function InstallTile({ bot }: { bot: Bot }): JSX.Element {
             style={{
               ...theme.font.subtext,
               ...FORE,
+              fontFamily: theme.font.family,
               display: "inline-flex",
               alignItems: "center",
               justifyContent: "center",
-              gap: 8,
               alignSelf: pane.narrow ? "stretch" : "flex-end",
               width: pane.narrow ? "100%" : "auto",
               minWidth: pane.narrow ? 0 : 200,
@@ -858,29 +938,50 @@ function InstallTile({ bot }: { bot: Bot }): JSX.Element {
               boxSizing: "border-box",
               padding: "0 22px",
               borderRadius: 999,
-              backgroundColor: fill,
+              backgroundColor: "var(--bb-pill-fill)",
               color: label,
               boxShadow: PILL_LIP,
-              fontSize: 14,
-              fontWeight: 700,
+              fontSize: 13,
+              fontWeight: theme.weight.semibold,
               letterSpacing: "0.1em",
               textTransform: "uppercase",
-              overflow: "hidden",
+              position: "relative",
+              transition: `background-color ${MOTION}, box-shadow ${MOTION}`,
             }}
           >
             <span
               aria-hidden
               style={{
                 position: "absolute",
-                left: 0,
-                right: 0,
-                top: 0,
-                height: "52%",
+                inset: 0,
+                borderRadius: "inherit",
+                overflow: "hidden",
                 pointerEvents: "none",
-                background: PILL_GLOSS,
               }}
-            />
-            <span style={{ position: "relative", zIndex: 1, display: "inline-flex", alignItems: "center", gap: 8 }}>
+            >
+              <span
+                style={{
+                  position: "absolute",
+                  left: 0,
+                  right: 0,
+                  top: 0,
+                  height: "52%",
+                  background: PILL_GLOSS,
+                }}
+              />
+            </span>
+            <span
+              style={{
+                position: "relative",
+                zIndex: 1,
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 8,
+                textShadow: "var(--bb-pill-ink-shadow)",
+                filter: "var(--bb-lens-drop)",
+                transition: TYPE_MOTION,
+              }}
+            >
               Install
               <Arrow color={label} />
             </span>
@@ -894,7 +995,6 @@ function InstallTile({ bot }: { bot: Bot }): JSX.Element {
 function MiniLink({ link }: { link: Link }): JSX.Element {
   const theme = useGrokTheme();
   const ring = useFocusRing();
-  const dark = theme.kind === "dark";
   const showDisplay = link.display.trim().length > 0 && link.display !== link.label;
   return (
     <GlassPane
@@ -918,15 +1018,27 @@ function MiniLink({ link }: { link: Link }): JSX.Element {
           key="label"
           style={{
             ...FORE,
+            fontFamily: theme.font.family,
             fontWeight: theme.weight.semibold,
-            textShadow: dark ? SOFT_SHADOW_DARK : SOFT_SHADOW_LIGHT,
+            textShadow: "var(--bb-ink-shadow)",
+            transition: `text-shadow ${MOTION}`,
             overflowWrap: "anywhere",
           }}
         >
           {link.label}
         </span>,
         showDisplay ? (
-          <span key="display" style={{ ...FORE, color: theme.text.secondary, textShadow: dark ? SOFT_SHADOW_DARK : SOFT_SHADOW_LIGHT, overflowWrap: "anywhere" }}>
+          <span
+            key="display"
+            style={{
+              ...FORE,
+              fontFamily: theme.font.family,
+              color: dimInk(theme.text.primary),
+              textShadow: "var(--bb-ink-shadow)",
+              transition: `text-shadow ${MOTION}`,
+              overflowWrap: "anywhere",
+            }}
+          >
             {link.display}
           </span>
         ) : null,
@@ -963,15 +1075,16 @@ export default function App(): JSX.Element {
               color: theme.text.primary,
               fontSize: "clamp(72px, 20vw, 108px)",
               lineHeight: 0.84,
-              fontWeight: 800,
-              letterSpacing: "-0.04em",
+              fontWeight: 700,
+              letterSpacing: "-0.05em",
               textTransform: "uppercase",
               textAlign: "center",
               margin: 0,
               width: "100%",
               minWidth: 0,
               overflowWrap: "anywhere",
-              textShadow: dark ? NAME_SHADOW_DARK : NAME_SHADOW_LIGHT,
+              textShadow: dark ? SOFT_SHADOW_DARK : SOFT_SHADOW_LIGHT,
+              filter: dark ? NAME_DROP_DARK : NAME_DROP_LIGHT,
             }}
           >
             {DISPLAY_NAME}
@@ -980,7 +1093,7 @@ export default function App(): JSX.Element {
             <p
               style={{
                 fontFamily: theme.font.family,
-                color: theme.text.secondary,
+                color: dimInk(theme.text.primary),
                 fontSize: 16,
                 lineHeight: 1.25,
                 fontWeight: theme.weight.semibold,
@@ -1036,7 +1149,8 @@ export default function App(): JSX.Element {
         <p
           style={{
             ...theme.font.caption,
-            color: theme.text.secondary,
+            fontFamily: theme.font.family,
+            color: dimInk(theme.text.primary),
             fontWeight: theme.weight.semibold,
             letterSpacing: "0.08em",
             textTransform: "none",
