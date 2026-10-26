@@ -17,7 +17,7 @@ import { useGrokTheme, Image, useEffect, useRef, useState, type CSSProperties, t
  * day (unset follows the viewer; a dark viewer stays on the charcoal field).
  * STAGE is graphite or color (unset stays graphite). Night is a deeper, cooler
  * black. Color is muted blooms under the same glass, not lacquer.
- * ACCENT is silver, rose, sage, violet, or amber (unset stays silver).
+ * ACCENT is silver, rose, sage, violet, amber, or teal (unset stays silver).
  * Silver keeps the current focus ring, hover wash, and chip tint.
  * No photographed frost plates.
  * Replace the constants and the bots/links arrays. Leave the JSX alone. See README.md.
@@ -38,7 +38,7 @@ const FOOTER = "__FOOTER__";
 const APPEARANCE = "__APPEARANCE__";
 /** Stage palette: graphite or color. colour aliases color. Unset stays graphite. */
 const STAGE = "__STAGE__";
-/** Owner accent: silver, rose, sage, violet, or amber. Unset stays silver. */
+/** Owner accent: silver, rose, sage, violet, amber, or teal. Unset stays silver. */
 const ACCENT = "__ACCENT__";
 
 type Bot = {
@@ -207,7 +207,7 @@ const LENS_DROP_HOVER_LIGHT = "drop-shadow(0 7px 2px rgba(16,16,20,0.32))";
 const SILVER = "#f4f5f7";
 const GRAPHITE = "#121214";
 const FOCUS_NONE = "none";
-type AccentName = "silver" | "rose" | "sage" | "violet" | "amber";
+type AccentName = "silver" | "rose" | "sage" | "violet" | "amber" | "teal";
 /**
  * Named accents only. Pale on dark glass, deep on day paper.
  * Silver is not here — it keeps SILVER / GRAPHITE and the current washes.
@@ -217,6 +217,7 @@ const ACCENT_FOCUS = {
   sage: { dark: "#d0dccf", light: "#3c5142" },
   violet: { dark: "#d8d0e6", light: "#4a3f64" },
   amber: { dark: "#e8d8b8", light: "#6a5230" },
+  teal: { dark: "#c5e4e6", light: "#2f5960" },
 } as const;
 /** Chip tint in the same opacity band as TINT_GRAD. Silver keeps that gradient. */
 const ACCENT_CHIP = {
@@ -224,6 +225,7 @@ const ACCENT_CHIP = {
   sage: { dark: "rgba(44, 62, 50, 0.70)", light: "rgba(228, 240, 230, 0.62)" },
   violet: { dark: "rgba(58, 48, 82, 0.70)", light: "rgba(236, 230, 248, 0.62)" },
   amber: { dark: "rgba(82, 62, 36, 0.70)", light: "rgba(248, 236, 214, 0.62)" },
+  teal: { dark: "rgba(36, 70, 76, 0.70)", light: "rgba(214, 240, 242, 0.62)" },
 } as const;
 /** liqui button: transition-[transform,box-shadow] duration-150. */
 const MOTION = "150ms ease";
@@ -762,7 +764,7 @@ function resolveStage(raw: string): StageMood {
 
 function resolveAccent(raw: string): AccentName {
   const value = raw.trim().toLowerCase();
-  if (value === "rose" || value === "sage" || value === "violet" || value === "amber") return value;
+  if (value === "rose" || value === "sage" || value === "violet" || value === "amber" || value === "teal") return value;
   return "silver";
 }
 
