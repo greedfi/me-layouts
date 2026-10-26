@@ -8,9 +8,9 @@ import { useGrokTheme, Image, useEffect, useRef, useState, type CSSProperties, t
  * Avatar and icons stay solid. The whole tile is the install link.
  * A trailing emoji run on the display name sits beside the hero at half size.
  * Long names, dense chips, and blank fields stay inside the column for any owner.
- * Type is one see-through face: silver at 0.82 on night and dark, near-solid
- * graphite on day, plus the now-playing legibility shadow. Night and dark
- * still show the field through the strokes. Day is dense enough to read on
+ * Type is one see-through face: silver at 0.82 on a dark device, near-solid
+ * graphite on a light device, plus the now-playing legibility shadow. Dark
+ * still shows the field through the strokes. Day is dense enough to read on
  * paper. Same face for the hero, the handle, the bio, tile titles,
  * descriptions, chips, and the footer. No forced uppercase, no wide tracking.
  * The display name is those letterforms only — no pane, tile, or pill behind it.
@@ -19,12 +19,17 @@ import { useGrokTheme, Image, useEffect, useRef, useState, type CSSProperties, t
  * specular lip and a milky body, not a second corner stroke.
  * The stage is an animated lumen field: slow blooms and a drifting sheen.
  * The glass edge comes from blooms, diagonal bands, and the scrim. Graphite blooms stay neutral.
- * Color is muted blooms under the same glass, not the loud liquid ribbons, not lacquer.
- * APPEARANCE is night, dark, or day (unset follows the viewer; a dark viewer
- * stays on the charcoal field). STAGE is graphite or color (unset stays graphite).
- * Night is a deeper, cooler field.
+ * Color, while the accent is silver, is muted multi-hue blooms under the same glass.
+ * Not the loud liquid ribbons, not lacquer.
+ * APPEARANCE is not a setup lock. The page follows the opener's device
+ * (host light is day, host dark is the charcoal field). A baked night, dark,
+ * or day is ignored. Night is not a deeper mode.
+ * STAGE is graphite or color (unset stays graphite).
  * ACCENT is silver, rose, sage, violet, amber, or teal (unset stays silver).
- * Silver keeps the current focus ring, hover wash, and chip tint.
+ * A named accent tints the stage blooms and the soft bands. The day mix is
+ * muted; the dark mix is richer. Tiles and chips stay the neutral glass.
+ * The focus ring may take a quiet accent stroke. Silver leaves the field on
+ * the device base.
  * No photographed frost plates.
  * Replace the constants and the bots/links arrays. Leave the JSX alone. See README.md.
  *
@@ -40,11 +45,15 @@ const DISPLAY_NAME = "__DISPLAY_NAME__";
 const HANDLE = "__HANDLE__";
 const BIO = "__BIO__";
 const FOOTER = "__FOOTER__";
-/** Owner appearance: night, dark, or day. light aliases day. Unset follows the viewer. */
+/**
+ * Ignored. Appearance follows the opener's device (useGrokTheme theme.kind).
+ * Host light is day. Host dark is the charcoal field. A filled night, dark,
+ * day, or light does not lock the page. Night is not a mode.
+ */
 const APPEARANCE = "__APPEARANCE__";
 /** Stage palette: graphite or color. colour aliases color. Unset stays graphite. */
 const STAGE = "__STAGE__";
-/** Owner accent: silver, rose, sage, violet, amber, or teal. Unset stays silver. */
+/** Named hues tint the stage field. Unset and silver leave the device base. Tiles and chips stay neutral. */
 const ACCENT = "__ACCENT__";
 
 type Bot = {
@@ -159,27 +168,11 @@ const BAND_DARK = "linear-gradient(90deg, rgba(255,255,255,0), rgba(255,255,255,
 const BAND_LIGHT = "linear-gradient(90deg, rgba(0,0,0,0), rgba(0,0,0,0.55), rgba(0,0,0,0))";
 const SCRIM_DARK = "linear-gradient(180deg, rgba(0,0,0,0.10), rgba(0,0,0,0) 38%, rgba(0,0,0,0.45))";
 const SCRIM_LIGHT = "linear-gradient(180deg, rgba(255,255,255,0.04), rgba(0,0,0,0) 40%, rgba(16,16,24,0.16))";
-const SCRIM_NIGHT = "linear-gradient(180deg, rgba(0,0,0,0.22), rgba(0,0,0,0) 40%, rgba(0,0,0,0.55))";
 const SCRIM_COLOR_DARK = "linear-gradient(180deg, rgba(0,0,0,0.46), rgba(0,0,0,0) 28%, rgba(0,0,0,0.50))";
 const SCRIM_COLOR_LIGHT = "linear-gradient(180deg, rgba(255,255,255,0.55), rgba(255,255,255,0) 30%, rgba(255,255,255,0.50))";
-/** Deeper than the charcoal field. The cool cast is the veil, not an accent wash. */
-const NIGHT_FIELD = "#000000";
-/** Charcoal used when dark is forced on a light host. */
-const DARK_FIELD = "#141418";
-/** Paper used when day is forced on a dark host. */
-const DAY_FIELD = "#f4f5f7";
-const NIGHT_BLOOM = "rgba(198, 214, 228, 1)";
-const NIGHT_BLOOM_DIM = "rgba(154, 172, 190, 1)";
-const NIGHT_VEIL = "radial-gradient(90% 52% at 50% -8%, rgba(92, 112, 132, 0.22), rgba(2, 3, 8, 0) 62%)";
-const FORCED_WELL_DARK = "rgba(255,255,255,0.10)";
-const FORCED_WELL_LIGHT = "rgba(18,18,20,0.06)";
-const FORCED_DIM_DARK = "rgba(186, 190, 198, 1)";
-const FORCED_DIM_LIGHT = "rgba(70, 72, 78, 1)";
 /** Muted stage hues. Never theme.accent, never tile lacquer. */
-const COLOR_NIGHT = ["rgba(168, 120, 188, 1)", "rgba(90, 140, 168, 1)", "rgba(176, 96, 120, 1)", "rgba(140, 160, 184, 1)"] as const;
 const COLOR_DARK = ["rgba(186, 110, 140, 1)", "rgba(110, 156, 120, 1)", "rgba(170, 120, 110, 1)", "rgba(130, 140, 176, 1)"] as const;
 const COLOR_DAY = ["rgba(232, 150, 168, 1)", "rgba(140, 190, 150, 1)", "rgba(176, 160, 214, 1)", "rgba(150, 186, 204, 1)"] as const;
-const COLOR_NIGHT_OPACITY = [0.55, 0.46, 0.4, 0.28] as const;
 const COLOR_DARK_OPACITY = [0.62, 0.5, 0.44, 0.3] as const;
 const COLOR_DAY_OPACITY = [0.55, 0.48, 0.42, 0.32] as const;
 /** now-playing micro labels: 0 1px 3px rgba(0,0,0,0.45). Day grounds graphite on paper. */
@@ -195,7 +188,7 @@ const SOFT_SHADOW_HOVER_LIGHT = "0.025em 0.025em 0.04em rgba(18,18,20,0.32)";
 const SILVER = "#f4f5f7";
 const GRAPHITE = "#121214";
 /**
- * One see-through ink. 0.82 of silver on night/dark. Day is 0.96 of graphite
+ * One see-through ink. 0.82 of silver on a dark device. Day is 0.96 of graphite
  * so the same face reads on paper. 0.55 went ghost-faint; opaque
  * theme.text.primary stamps the glass. The same ink is the hero, the handle,
  * the bio, tiles, chips, and the footer.
@@ -206,9 +199,10 @@ const SEE_DARK = `color-mix(in srgb, ${SILVER} ${SEE_MIX}, ${CLEAR})`;
 const SEE_DAY = `color-mix(in srgb, ${GRAPHITE} ${SEE_DAY_MIX}, ${CLEAR})`;
 const FOCUS_NONE = "none";
 type AccentName = "silver" | "rose" | "sage" | "violet" | "amber" | "teal";
+type NamedAccent = Exclude<AccentName, "silver">;
 /**
- * Named accents only. Pale on dark glass, deep on day paper.
- * Silver is not here — it keeps SILVER / GRAPHITE and the current washes.
+ * Quiet focus stroke only. Pale on dark glass, deep on day paper.
+ * Silver is not here — it keeps SILVER / GRAPHITE. The bubble body stays neutral.
  */
 const ACCENT_FOCUS = {
   rose: { dark: "#e8cfd4", light: "#73424c" },
@@ -217,14 +211,59 @@ const ACCENT_FOCUS = {
   amber: { dark: "#e8d8b8", light: "#6a5230" },
   teal: { dark: "#c5e4e6", light: "#2f5960" },
 } as const;
-/** Chip tint in the same opacity band as TINT_GRAD. Silver keeps that gradient. */
-const ACCENT_CHIP = {
-  rose: { dark: "rgba(92, 48, 58, 0.70)", light: "rgba(176, 112, 124, 0.62)" },
-  sage: { dark: "rgba(44, 62, 50, 0.70)", light: "rgba(112, 140, 120, 0.62)" },
-  violet: { dark: "rgba(58, 48, 82, 0.70)", light: "rgba(132, 118, 168, 0.62)" },
-  amber: { dark: "rgba(82, 62, 36, 0.70)", light: "rgba(168, 132, 88, 0.62)" },
-  teal: { dark: "rgba(36, 70, 76, 0.70)", light: "rgba(80, 146, 154, 0.62)" },
-} as const;
+/**
+ * One accent, two field mixes. Dark is hue-forward so charcoal carries it.
+ * Day is chalkier so paper stays quiet. Never a chip fill, never lacquer.
+ */
+const ACCENT_BLOOM: Record<NamedAccent, { dark: readonly [string, string, string, string]; day: readonly [string, string, string, string] }> = {
+  rose: {
+    dark: ["rgba(206, 104, 128, 1)", "rgba(160, 64, 92, 1)", "rgba(228, 160, 172, 1)", "rgba(120, 48, 68, 1)"],
+    day: ["rgba(216, 142, 156, 1)", "rgba(190, 118, 134, 1)", "rgba(230, 180, 188, 1)", "rgba(176, 112, 126, 1)"],
+  },
+  sage: {
+    dark: ["rgba(120, 176, 132, 1)", "rgba(72, 132, 92, 1)", "rgba(176, 206, 176, 1)", "rgba(48, 96, 68, 1)"],
+    day: ["rgba(140, 198, 154, 1)", "rgba(112, 180, 130, 1)", "rgba(184, 214, 186, 1)", "rgba(100, 164, 118, 1)"],
+  },
+  violet: {
+    dark: ["rgba(164, 130, 204, 1)", "rgba(116, 84, 168, 1)", "rgba(196, 176, 220, 1)", "rgba(80, 60, 120, 1)"],
+    day: ["rgba(180, 156, 210, 1)", "rgba(154, 132, 190, 1)", "rgba(206, 190, 224, 1)", "rgba(140, 120, 176, 1)"],
+  },
+  amber: {
+    dark: ["rgba(210, 160, 84, 1)", "rgba(168, 112, 48, 1)", "rgba(228, 196, 140, 1)", "rgba(120, 80, 36, 1)"],
+    day: ["rgba(216, 176, 118, 1)", "rgba(190, 150, 90, 1)", "rgba(228, 204, 160, 1)", "rgba(176, 140, 90, 1)"],
+  },
+  teal: {
+    dark: ["rgba(64, 188, 196, 1)", "rgba(32, 140, 152, 1)", "rgba(140, 214, 210, 1)", "rgba(18, 100, 112, 1)"],
+    day: ["rgba(112, 188, 192, 1)", "rgba(86, 168, 176, 1)", "rgba(176, 214, 212, 1)", "rgba(78, 150, 158, 1)"],
+  },
+};
+const ACCENT_BLOOM_OPACITY_DARK = [0.66, 0.52, 0.42, 0.3] as const;
+const ACCENT_BLOOM_OPACITY_DAY = [0.48, 0.38, 0.3, 0.2] as const;
+/** Soft accent sheen. The layer opacity keeps the band quieter than the blooms. */
+const ACCENT_BAND: Record<NamedAccent, { dark: string; day: string }> = {
+  rose: {
+    dark: "linear-gradient(90deg, rgba(206,104,128,0), rgba(228, 160, 172, 0.92), rgba(206,104,128,0))",
+    day: "linear-gradient(90deg, rgba(216,142,156,0), rgba(190, 118, 134, 0.7), rgba(216,142,156,0))",
+  },
+  sage: {
+    dark: "linear-gradient(90deg, rgba(120,176,132,0), rgba(176, 206, 176, 0.92), rgba(120,176,132,0))",
+    day: "linear-gradient(90deg, rgba(140,198,154,0), rgba(112, 180, 130, 0.7), rgba(140,198,154,0))",
+  },
+  violet: {
+    dark: "linear-gradient(90deg, rgba(164,130,204,0), rgba(196, 176, 220, 0.92), rgba(164,130,204,0))",
+    day: "linear-gradient(90deg, rgba(180,156,210,0), rgba(154, 132, 190, 0.7), rgba(180,156,210,0))",
+  },
+  amber: {
+    dark: "linear-gradient(90deg, rgba(210,160,84,0), rgba(228, 196, 140, 0.92), rgba(210,160,84,0))",
+    day: "linear-gradient(90deg, rgba(216,176,118,0), rgba(190, 150, 90, 0.7), rgba(216,176,118,0))",
+  },
+  teal: {
+    dark: "linear-gradient(90deg, rgba(64,188,196,0), rgba(140, 214, 210, 0.92), rgba(64,188,196,0))",
+    day: "linear-gradient(90deg, rgba(112,188,192,0), rgba(86, 168, 176, 0.7), rgba(112,188,192,0))",
+  },
+};
+const ACCENT_BAND_OPACITY_DARK = [0.34, 0.22] as const;
+const ACCENT_BAND_OPACITY_DAY = [0.24, 0.16] as const;
 /** liqui button: transition-[transform,box-shadow] duration-150. */
 const MOTION = "150ms ease";
 
@@ -597,7 +636,7 @@ function GlassPane({
           style={{
             ...LAYER,
             zIndex: 1,
-            background: kind === "chip" ? look.accentChip : dark ? TINT_GRAD_DARK : TINT_GRAD_LIGHT,
+            background: dark ? TINT_GRAD_DARK : TINT_GRAD_LIGHT,
             opacity: tintOpacity,
           }}
         />
@@ -646,7 +685,7 @@ function GlassPane({
           </svg>
         ) : null}
       </div>
-      <div aria-hidden style={{ ...LAYER, zIndex: 3, background: look.accentWash, opacity: hovered ? 1 : 0, transition: `opacity ${MOTION}` }} />
+      <div aria-hidden style={{ ...LAYER, zIndex: 3, background: HOVER_WASH, opacity: hovered ? 1 : 0, transition: `opacity ${MOTION}` }} />
       <div style={{ position: "relative", zIndex: 4, boxSizing: "border-box", minWidth: 0, ...contentStyle }}>{children}</div>
     </a>
   );
@@ -704,28 +743,29 @@ function heroEmojiStyle(index: number, hasText: boolean, color: string): CSSProp
   return { ...HERO_EMOJI, marginLeft, color };
 }
 
-type Appearance = "night" | "dark" | "day";
+type Appearance = "dark" | "day";
 type StageMood = "graphite" | "color";
 
 type BillboardLook = {
   theme: ReturnType<typeof useGrokTheme>;
   appearance: Appearance;
   stage: StageMood;
-  /** Night and dark share the dark glass stack. Day uses the light stack. */
+  /** A dark device uses the dark glass stack. A light device uses the day stack. */
   dark: boolean;
   ink: string;
   bg: string;
   well: string;
+  accent: AccentName;
+  /** Quiet stroke. Named accents may tint it. The bubble body stays neutral. */
   accentFocus: string;
-  accentWash: string;
-  accentChip: string;
 };
 
-function resolveAppearance(raw: string, host: "light" | "dark"): Appearance {
-  const value = raw.trim().toLowerCase();
-  if (value === "night") return "night";
-  if (value === "dark") return "dark";
-  if (value === "day" || value === "light") return "day";
+/**
+ * Host wins. A baked APPEARANCE of night, dark, day, or light is ignored, so
+ * a filled page cannot stick on day while the phone is dark. Host light is
+ * day. Host dark is the charcoal field. Night is not a deeper mode.
+ */
+function resolveAppearance(_raw: string, host: "light" | "dark"): Appearance {
   return host === "light" ? "day" : "dark";
 }
 
@@ -741,52 +781,36 @@ function resolveAccent(raw: string): AccentName {
   return "silver";
 }
 
-/** Silver returns the shipped ring, wash, and chip tint. Other names swap those three. */
-function accentSpots(name: AccentName, dark: boolean): { focus: string; wash: string; chip: string } {
-  if (name === "silver") {
-    return {
-      focus: dark ? SILVER : GRAPHITE,
-      wash: HOVER_WASH,
-      chip: dark ? TINT_GRAD_DARK : TINT_GRAD_LIGHT,
-    };
-  }
-  const side = dark ? "dark" : "light";
-  const focus = ACCENT_FOCUS[name][side];
-  return {
-    focus,
-    wash: `color-mix(in srgb, ${focus} 13%, ${CLEAR})`,
-    chip: ACCENT_CHIP[name][side],
-  };
+/** Silver keeps silver on dark and graphite on day. Named accents use a quiet stroke. */
+function accentFocusColor(name: AccentName, dark: boolean): string {
+  if (name === "silver") return dark ? SILVER : GRAPHITE;
+  return ACCENT_FOCUS[name][dark ? "dark" : "light"];
 }
 
 /**
- * Fill tokens win when they name a mode. Anything else, including an
- * unreplaced token, follows the viewer, stays on graphite, and stays silver —
- * so a page that never set these still looks like the shipped charcoal field.
+ * Appearance follows the opener. A filled APPEARANCE cannot override it.
+ * Stage and accent still come from their fill tokens. Unset stage stays
+ * graphite. Unset accent stays silver and leaves the device field alone.
+ * A named accent tints that field and still tracks day or dark.
  */
 function useBillboardLook(): BillboardLook {
   const theme = useGrokTheme();
   const appearance = resolveAppearance(APPEARANCE, theme.kind);
   const stage = resolveStage(STAGE);
-  const dark = appearance !== "day";
-  const hostDark = theme.kind === "dark";
-  const matched = dark === hostDark;
+  const dark = appearance === "dark";
+  const accent = resolveAccent(ACCENT);
   // See-through body ink. theme.text.primary stays near-black in both kinds and stamps the glass.
   const ink = dark ? SEE_DARK : SEE_DAY;
-  const bg = appearance === "night" ? NIGHT_FIELD : appearance === "day" ? (hostDark ? DAY_FIELD : theme.bg.base) : hostDark ? theme.bg.base : DARK_FIELD;
-  const well = matched ? theme.fill.secondary : dark ? FORCED_WELL_DARK : FORCED_WELL_LIGHT;
-  const spots = accentSpots(resolveAccent(ACCENT), dark);
   return {
     theme,
     appearance,
     stage,
     dark,
     ink,
-    bg,
-    well,
-    accentFocus: spots.focus,
-    accentWash: spots.wash,
-    accentChip: spots.chip,
+    bg: theme.bg.base,
+    well: theme.fill.secondary,
+    accent,
+    accentFocus: accentFocusColor(accent, dark),
   };
 }
 
@@ -924,9 +948,22 @@ const BLOOM_BLUR = [90, 100, 110, 80] as const;
 const BLOOM_DRIFT: readonly DriftName[] = ["a", "b", "c", "d"];
 
 function stageBlooms(look: BillboardLook): BloomSpec[] {
+  if (look.accent !== "silver") {
+    const day = look.appearance === "day";
+    const palette = ACCENT_BLOOM[look.accent][day ? "day" : "dark"];
+    const opacity = day ? ACCENT_BLOOM_OPACITY_DAY : ACCENT_BLOOM_OPACITY_DARK;
+    return palette.map((color, index) => ({
+      key: `accent-${index}`,
+      drift: BLOOM_DRIFT[index],
+      color,
+      opacity: opacity[index],
+      blur: BLOOM_BLUR[index],
+      box: BLOOM_BOX[index],
+    }));
+  }
   if (look.stage === "color") {
-    const palette = look.appearance === "night" ? COLOR_NIGHT : look.appearance === "day" ? COLOR_DAY : COLOR_DARK;
-    const opacity = look.appearance === "night" ? COLOR_NIGHT_OPACITY : look.appearance === "day" ? COLOR_DAY_OPACITY : COLOR_DARK_OPACITY;
+    const palette = look.appearance === "day" ? COLOR_DAY : COLOR_DARK;
+    const opacity = look.appearance === "day" ? COLOR_DAY_OPACITY : COLOR_DARK_OPACITY;
     return palette.map((color, index) => ({
       key: `color-${index}`,
       drift: BLOOM_DRIFT[index],
@@ -936,18 +973,8 @@ function stageBlooms(look: BillboardLook): BloomSpec[] {
       box: BLOOM_BOX[index],
     }));
   }
-  const opacity = look.appearance === "night" ? ([0.18, 0.28, 0.12] as const) : look.appearance === "day" ? ([0.34, 0.22, 0.2] as const) : ([0.2, 0.34, 0.16] as const);
-  const hostDark = look.theme.kind === "dark";
-  let primary = look.theme.text.primary;
-  let secondary = look.theme.text.secondary;
-  if (look.appearance === "night") {
-    primary = NIGHT_BLOOM;
-    secondary = NIGHT_BLOOM_DIM;
-  } else if (look.dark !== hostDark) {
-    primary = look.dark ? SILVER : GRAPHITE;
-    secondary = look.dark ? FORCED_DIM_DARK : FORCED_DIM_LIGHT;
-  }
-  const colors = [primary, secondary, primary];
+  const opacity = look.appearance === "day" ? ([0.34, 0.22, 0.2] as const) : ([0.2, 0.34, 0.16] as const);
+  const colors = [look.theme.text.primary, look.theme.text.secondary, look.theme.text.primary];
   return colors.map((color, index) => ({
     key: `graphite-${index}`,
     drift: BLOOM_DRIFT[index],
@@ -967,21 +994,22 @@ const STAGE_FRAME: CSSProperties = {
 };
 
 /**
- * Lumen field from before the glossy color pass. Soft blooms and drifting
- * sheen bands. Graphite blooms stay neutral ink. Color mode swaps in muted
- * hues. No hairline grid — the edge comes from the blooms, the bands, and the scrim.
+ * Lumen field. Silver keeps neutral ink, or the muted multi-hue set when
+ * STAGE is color. A named accent replaces both with that hue: richer on a
+ * dark device, muted on day paper. Bands follow the same split. No hairline
+ * grid — the edge comes from the blooms, the bands, and the scrim.
  */
 function Stage(): JSX.Element {
   const look = useBillboardLook();
   const dark = look.dark;
-  const night = look.appearance === "night";
-  const band = dark ? BAND_DARK : BAND_LIGHT;
-  const scrim = !dark ? (look.stage === "color" ? SCRIM_COLOR_LIGHT : SCRIM_LIGHT) : look.stage === "color" ? SCRIM_COLOR_DARK : night ? SCRIM_NIGHT : SCRIM_DARK;
-  const bandOpacityA = look.stage === "color" ? (dark ? 0.18 : 0.14) : night ? 0.32 : dark ? 0.42 : 0.28;
-  const bandOpacityB = look.stage === "color" ? (dark ? 0.12 : 0.1) : night ? 0.24 : dark ? 0.34 : 0.22;
+  const named = look.accent !== "silver";
+  const colorStage = look.stage === "color" && !named;
+  const band = look.accent === "silver" ? (dark ? BAND_DARK : BAND_LIGHT) : dark ? ACCENT_BAND[look.accent].dark : ACCENT_BAND[look.accent].day;
+  const scrim = !dark ? (colorStage ? SCRIM_COLOR_LIGHT : SCRIM_LIGHT) : colorStage ? SCRIM_COLOR_DARK : SCRIM_DARK;
+  const bandOpacityA = named ? (dark ? ACCENT_BAND_OPACITY_DARK[0] : ACCENT_BAND_OPACITY_DAY[0]) : colorStage ? (dark ? 0.18 : 0.14) : dark ? 0.42 : 0.28;
+  const bandOpacityB = named ? (dark ? ACCENT_BAND_OPACITY_DARK[1] : ACCENT_BAND_OPACITY_DAY[1]) : colorStage ? (dark ? 0.12 : 0.1) : dark ? 0.34 : 0.22;
   return (
     <div aria-hidden style={STAGE_FRAME}>
-      {night ? <div style={{ position: "absolute", inset: 0, background: NIGHT_VEIL, pointerEvents: "none" }} /> : null}
       {stageBlooms(look).map((bloom) => (
         <Drift
           key={bloom.key}
