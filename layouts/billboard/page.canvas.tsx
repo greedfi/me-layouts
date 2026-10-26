@@ -5,7 +5,8 @@ import { useGrokTheme, Image, useEffect, useRef, useState, type CSSProperties, t
  * Link-tree column: avatar, name, handle, bio, full-width Install tiles, link chips, footer.
  * Header is those four fields only — no pack wordmark, no kicker.
  * Tiles and chips are a liqui lens (displacement + frost + specular + tint).
- * Avatar and icons stay solid. Install is a solid accent control, not a lens.
+ * Avatar and icons stay solid. Install is a solid silver control, not a lens and not a blue accent.
+ * Type is liqui on glass: crisp primary, dim secondary, a soft legibility shadow. No stamp slabs.
  * The stage is a dark field with hard rules so refraction has an edge to bend.
  * No photographed frost plates.
  * Replace the constants and the bots/links arrays. Leave the JSX alone. See README.md.
@@ -90,7 +91,7 @@ const SHINE_LIGHT = [
   "inset 0 0 2px rgba(0,0,0,0.28)",
 ].join(", ");
 const ELEVATED_DARK = "0 28px 64px rgba(0,0,5,0.62), 0 4px 14px rgba(0,0,5,0.38)";
-const ELEVATED_LIGHT = "0 24px 60px rgba(10,15,40,0.28), 0 4px 14px rgba(10,15,40,0.14)";
+const ELEVATED_LIGHT = "0 24px 60px rgba(16,16,20,0.28), 0 4px 14px rgba(16,16,20,0.14)";
 const CAUSTIC_EDGE = "1px solid rgba(0,0,0,0.90)";
 const SHEEN =
   "linear-gradient(128deg, rgba(255,255,255,0.82) 0%, rgba(255,255,255,0) 16%, rgba(255,255,255,0) 64%, rgba(255,255,255,0.62) 100%)";
@@ -112,12 +113,18 @@ const BAND_LIGHT = "linear-gradient(90deg, rgba(0,0,0,0), rgba(0,0,0,0.55), rgba
 const SCRIM_DARK = "linear-gradient(180deg, rgba(0,0,0,0.10), rgba(0,0,0,0) 38%, rgba(0,0,0,0.45))";
 const SCRIM_LIGHT = "linear-gradient(180deg, rgba(255,255,255,0.04), rgba(0,0,0,0) 40%, rgba(16,16,24,0.16))";
 
-const STAMP_NAME_DARK = "0 1px 0 rgba(0,0,0,0.96), 0 2px 0 rgba(0,0,0,0.72), 0 3px 0 rgba(0,0,0,0.42), 0 12px 28px rgba(0,0,0,0.55)";
-const STAMP_NAME_LIGHT = "0 1px 0 rgba(255,255,255,0.94), 0 2px 0 rgba(16,16,20,0.22), 0 12px 28px rgba(16,16,20,0.18)";
-const STAMP_TITLE_DARK = "0 1px 0 rgba(0,0,0,0.94), 0 2px 0 rgba(0,0,0,0.62), 0 8px 18px rgba(0,0,0,0.48)";
-const STAMP_TITLE_LIGHT = "0 1px 0 rgba(255,255,255,0.92), 0 2px 0 rgba(16,16,20,0.2), 0 8px 16px rgba(16,16,20,0.14)";
-const LEGIBLE_DARK = "0 1px 2px rgba(0,0,0,0.78), 0 0 14px rgba(0,0,0,0.38)";
-const LEGIBLE_LIGHT = "0 1px 0 rgba(255,255,255,0.88), 0 1px 2px rgba(16,16,20,0.2)";
+/** Hero only. Two layers, not a black stamp stack. Liqui label shadow plus a soft drop. */
+const NAME_SHADOW_DARK = "0 1px 3px rgba(0,0,0,0.45), 0 12px 28px rgba(0,0,0,0.28)";
+const NAME_SHADOW_LIGHT = "0 1px 2px rgba(255,255,255,0.86), 0 10px 22px rgba(16,16,20,0.14)";
+/** now-playing micro labels: 0 1px 3px rgba(0,0,0,0.45). Light is the inverted lift. */
+const SOFT_SHADOW_DARK = "0 1px 3px rgba(0,0,0,0.45)";
+const SOFT_SHADOW_LIGHT = "0 1px 2px rgba(255,255,255,0.78)";
+/**
+ * Solid Install fill. Silver on dark, graphite on light.
+ * Flat meaning, never the host accent and never liqui's blue accent.
+ */
+const SILVER = "#f4f5f7";
+const GRAPHITE = "#121214";
 const PILL_LIP = "inset 0 1px 0 rgba(255,255,255,0.55), inset 0 -1px 0 rgba(0,0,0,0.32)";
 const PILL_GLOSS = "linear-gradient(180deg, rgba(255,255,255,0.42), rgba(255,255,255,0))";
 const FOCUS_NONE = "none";
@@ -448,7 +455,7 @@ function GlassPane({
         textDecoration: "none",
         color: theme.text.primary,
         boxShadow: dark ? ELEVATED_DARK : ELEVATED_LIGHT,
-        outline: focused ? `2px solid ${theme.text.accent}` : FOCUS_NONE,
+        outline: focused ? `2px solid ${dark ? SILVER : GRAPHITE}` : FOCUS_NONE,
         outlineOffset: 3,
         ...SQUIRCLE,
       }}
@@ -774,7 +781,8 @@ function InstallTile({ bot }: { bot: Bot }): JSX.Element {
   const pane = useNarrowTile();
   const ring = useFocusRing();
   const dark = theme.kind === "dark";
-  const label = theme.text.onColor;
+  const fill = dark ? SILVER : GRAPHITE;
+  const label = dark ? GRAPHITE : SILVER;
   return (
     <div ref={pane.ref} style={{ width: "100%", minWidth: 0 }}>
       <GlassPane
@@ -801,12 +809,12 @@ function InstallTile({ bot }: { bot: Bot }): JSX.Element {
                 ...theme.font.heading1,
                 ...FORE,
                 color: theme.text.primary,
-                fontSize: "clamp(32px, 9vw, 48px)",
-                lineHeight: 0.88,
-                fontWeight: 800,
-                letterSpacing: "-0.045em",
-                textTransform: "uppercase",
-                textShadow: dark ? STAMP_TITLE_DARK : STAMP_TITLE_LIGHT,
+                fontSize: "clamp(24px, 6.4vw, 30px)",
+                lineHeight: 1.05,
+                fontWeight: 700,
+                letterSpacing: "-0.02em",
+                textTransform: "none",
+                textShadow: dark ? SOFT_SHADOW_DARK : SOFT_SHADOW_LIGHT,
                 margin: 0,
                 flex: "1 1 auto",
                 minWidth: 0,
@@ -821,13 +829,13 @@ function InstallTile({ bot }: { bot: Bot }): JSX.Element {
             style={{
               ...theme.font.body1,
               ...FORE,
-              color: theme.text.primary,
-              fontSize: 17,
+              color: theme.text.secondary,
+              fontSize: 14,
               lineHeight: 1.35,
               fontWeight: theme.weight.medium,
               letterSpacing: "0",
               textTransform: "none",
-              textShadow: dark ? LEGIBLE_DARK : LEGIBLE_LIGHT,
+              textShadow: dark ? SOFT_SHADOW_DARK : SOFT_SHADOW_LIGHT,
               margin: 0,
               overflowWrap: "anywhere",
             }}
@@ -850,12 +858,12 @@ function InstallTile({ bot }: { bot: Bot }): JSX.Element {
               boxSizing: "border-box",
               padding: "0 22px",
               borderRadius: 999,
-              backgroundColor: theme.fill.accent,
+              backgroundColor: fill,
               color: label,
               boxShadow: PILL_LIP,
-              fontSize: 15,
+              fontSize: 14,
               fontWeight: 700,
-              letterSpacing: "0.08em",
+              letterSpacing: "0.1em",
               textTransform: "uppercase",
               overflow: "hidden",
             }}
@@ -906,11 +914,19 @@ function MiniLink({ link }: { link: Link }): JSX.Element {
         color: theme.text.primary,
       }}
       children={[
-        <span key="label" style={{ ...FORE, fontWeight: theme.weight.semibold, overflowWrap: "anywhere" }}>
+        <span
+          key="label"
+          style={{
+            ...FORE,
+            fontWeight: theme.weight.semibold,
+            textShadow: dark ? SOFT_SHADOW_DARK : SOFT_SHADOW_LIGHT,
+            overflowWrap: "anywhere",
+          }}
+        >
           {link.label}
         </span>,
         showDisplay ? (
-          <span key="display" style={{ ...FORE, color: theme.text.secondary, textShadow: dark ? LEGIBLE_DARK : LEGIBLE_LIGHT, overflowWrap: "anywhere" }}>
+          <span key="display" style={{ ...FORE, color: theme.text.secondary, textShadow: dark ? SOFT_SHADOW_DARK : SOFT_SHADOW_LIGHT, overflowWrap: "anywhere" }}>
             {link.display}
           </span>
         ) : null,
@@ -946,16 +962,16 @@ export default function App(): JSX.Element {
               fontFamily: theme.font.family,
               color: theme.text.primary,
               fontSize: "clamp(72px, 20vw, 108px)",
-              lineHeight: 0.8,
+              lineHeight: 0.84,
               fontWeight: 800,
-              letterSpacing: "-0.065em",
+              letterSpacing: "-0.04em",
               textTransform: "uppercase",
               textAlign: "center",
               margin: 0,
               width: "100%",
               minWidth: 0,
               overflowWrap: "anywhere",
-              textShadow: dark ? STAMP_NAME_DARK : STAMP_NAME_LIGHT,
+              textShadow: dark ? NAME_SHADOW_DARK : NAME_SHADOW_LIGHT,
             }}
           >
             {DISPLAY_NAME}
@@ -965,12 +981,12 @@ export default function App(): JSX.Element {
               style={{
                 fontFamily: theme.font.family,
                 color: theme.text.secondary,
-                fontSize: 20,
+                fontSize: 16,
                 lineHeight: 1.25,
                 fontWeight: theme.weight.semibold,
                 letterSpacing: "0.01em",
                 textAlign: "center",
-                textShadow: dark ? LEGIBLE_DARK : LEGIBLE_LIGHT,
+                textShadow: dark ? SOFT_SHADOW_DARK : SOFT_SHADOW_LIGHT,
                 margin: 0,
                 width: "100%",
                 minWidth: 0,
@@ -984,13 +1000,13 @@ export default function App(): JSX.Element {
             style={{
               fontFamily: theme.font.family,
               color: theme.text.primary,
-              fontSize: 17,
+              fontSize: 15,
               lineHeight: 1.4,
               fontWeight: theme.weight.medium,
               letterSpacing: "0",
               textTransform: "none",
               textAlign: "center",
-              textShadow: dark ? LEGIBLE_DARK : LEGIBLE_LIGHT,
+              textShadow: dark ? SOFT_SHADOW_DARK : SOFT_SHADOW_LIGHT,
               margin: "4px 0 0",
               width: "100%",
               minWidth: 0,
@@ -1024,6 +1040,7 @@ export default function App(): JSX.Element {
             fontWeight: theme.weight.semibold,
             letterSpacing: "0.08em",
             textTransform: "none",
+            textShadow: dark ? SOFT_SHADOW_DARK : SOFT_SHADOW_LIGHT,
             textAlign: "center",
             margin: "8px 0 0",
             minWidth: 0,
