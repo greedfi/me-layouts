@@ -5,11 +5,13 @@ import { useGrokTheme, Image, useEffect, useRef, useState, type CSSProperties, t
  * Link-tree column: avatar, name, handle, bio, full-width Install tiles, link chips, footer.
  * Header is those four fields only — no pack wordmark, no kicker.
  * Tiles and chips are a liqui lens (displacement + frost + specular + tint).
- * Avatar and icons stay solid. Install is a solid silver control, not a lens and not a blue accent.
+ * Avatar and icons stay solid. The whole tile is the install link.
+ * A trailing emoji run on the display name sits beside the hero at half size.
+ * Long names, dense chips, and blank fields stay inside the column for any owner.
  * Type is liqui on glass: primary ink, secondary at 0.55 of that ink, the now-playing
  * legibility shadow, tight semibold titles, and a restrained lens drop-shadow so
- * tile titles and Install sit in the glass instead of on it.
- * Tiles and chips lift, wash, and press. The Install pill rides the tile.
+ * tile titles sit in the glass instead of on it.
+ * Tiles and chips lift, wash, and press.
  * The stage is a dark field with hard rules so refraction has an edge to bend.
  * No photographed frost plates.
  * Replace the constants and the bots/links arrays. Leave the JSX alone. See README.md.
@@ -40,8 +42,8 @@ type Link = {
   display: string;
 };
 
-// Filler replaces this array from owner setup answers.
-// Later entries use the same keys: __BOTn_NAME__, __BOTn_DESC__, __BOTn_ICON__, __BOTn_HREF__.
+// Filler replaces this whole array (0–N). Two examples so an unfilled preview
+// shows a stack. Same keys: __BOTn_NAME__, __BOTn_DESC__, __BOTn_ICON__, __BOTn_HREF__.
 const bots: readonly Bot[] = [
   {
     name: "__BOT0_NAME__",
@@ -49,15 +51,41 @@ const bots: readonly Bot[] = [
     src: "__BOT0_ICON__",
     href: "__BOT0_HREF__",
   },
+  {
+    name: "__BOT1_NAME__",
+    desc: "__BOT1_DESC__",
+    src: "__BOT1_ICON__",
+    href: "__BOT1_HREF__",
+  },
 ];
 
-// Filler replaces this array from owner setup answers.
-// Later entries use __LINKn_LABEL__, __LINKn_HREF__, __LINKn_DISPLAY__.
+// Filler replaces this whole array (0–N). Five slots stand in for a new owner:
+// X, GitHub, site, YouTube, LinkedIn. Same keys: __LINKn_LABEL__, __LINKn_HREF__, __LINKn_DISPLAY__.
 const links: readonly Link[] = [
   {
     label: "__LINK0_LABEL__",
     href: "__LINK0_HREF__",
     display: "__LINK0_DISPLAY__",
+  },
+  {
+    label: "__LINK1_LABEL__",
+    href: "__LINK1_HREF__",
+    display: "__LINK1_DISPLAY__",
+  },
+  {
+    label: "__LINK2_LABEL__",
+    href: "__LINK2_HREF__",
+    display: "__LINK2_DISPLAY__",
+  },
+  {
+    label: "__LINK3_LABEL__",
+    href: "__LINK3_HREF__",
+    display: "__LINK3_DISPLAY__",
+  },
+  {
+    label: "__LINK4_LABEL__",
+    href: "__LINK4_HREF__",
+    display: "__LINK4_DISPLAY__",
   },
 ];
 
@@ -132,7 +160,7 @@ const SOFT_SHADOW_HOVER_DARK = "0.025em 0.025em 0.05em rgba(0,0,0,0.55)";
 const SOFT_SHADOW_HOVER_LIGHT = "0.025em 0.025em 0.04em rgba(255,255,255,0.9)";
 /**
  * Lens depth under the glyph. freefrontend's label is drop-shadow(0 25px 3px);
- * these are the shorter falls so the shadow stays inside the hero, the tile, and the pill.
+ * these are the shorter falls so the shadow stays inside the hero and the tile.
  */
 const NAME_DROP_DARK = "drop-shadow(0 0.14em 0.03em rgba(0,0,0,0.55))";
 const NAME_DROP_LIGHT = "drop-shadow(0 0.14em 0.03em rgba(16,16,20,0.35))";
@@ -140,17 +168,9 @@ const LENS_DROP_DARK = "drop-shadow(0 12px 2px rgba(0,0,0,0.4))";
 const LENS_DROP_HOVER_DARK = "drop-shadow(0 7px 2px rgba(0,0,0,0.5))";
 const LENS_DROP_LIGHT = "drop-shadow(0 12px 2px rgba(16,16,20,0.24))";
 const LENS_DROP_HOVER_LIGHT = "drop-shadow(0 7px 2px rgba(16,16,20,0.32))";
-/**
- * Solid Install fill. Silver on dark, graphite on light.
- * Flat meaning, never the host accent and never liqui's blue accent.
- */
+/** Focus ring. Silver on dark, graphite on light. Never the host accent. */
 const SILVER = "#f4f5f7";
 const GRAPHITE = "#121214";
-/** Solid-button hover from liqui: white mixed 14% into the fill. */
-const PILL_FILL_HOVER_DARK = `color-mix(in srgb, ${WHITE} 14%, ${SILVER})`;
-const PILL_FILL_HOVER_LIGHT = `color-mix(in srgb, ${WHITE} 14%, ${GRAPHITE})`;
-const PILL_LIP = "inset 0 1px 0 rgba(255,255,255,0.55), inset 0 -1px 0 rgba(0,0,0,0.32)";
-const PILL_GLOSS = "linear-gradient(180deg, rgba(255,255,255,0.42), rgba(255,255,255,0))";
 const FOCUS_NONE = "none";
 /** liqui button: transition-[transform,box-shadow] duration-150. */
 const MOTION = "150ms ease";
@@ -467,28 +487,18 @@ function GlassPane({
   const transform = pressed ? "translateY(0) scale(0.97)" : hovered ? `translateY(${lift}) scale(1)` : "translateY(0) scale(1)";
   const inkShadow = hovered ? (dark ? SOFT_SHADOW_HOVER_DARK : SOFT_SHADOW_HOVER_LIGHT) : dark ? SOFT_SHADOW_DARK : SOFT_SHADOW_LIGHT;
   const lensDrop = hovered ? (dark ? LENS_DROP_HOVER_DARK : LENS_DROP_HOVER_LIGHT) : dark ? LENS_DROP_DARK : LENS_DROP_LIGHT;
-  // The pill inverts the page: dark pages put dark ink on silver, so they take the light-mode shadow.
-  const pillInk = dark
-    ? hovered
-      ? SOFT_SHADOW_HOVER_LIGHT
-      : SOFT_SHADOW_LIGHT
-    : hovered
-      ? SOFT_SHADOW_HOVER_DARK
-      : SOFT_SHADOW_DARK;
-  const pillFill = hovered ? (dark ? PILL_FILL_HOVER_DARK : PILL_FILL_HOVER_LIGHT) : dark ? SILVER : GRAPHITE;
   const hotVars = {
     "--bb-ink-shadow": inkShadow,
     "--bb-lens-drop": lensDrop,
-    "--bb-pill-ink-shadow": pillInk,
-    "--bb-pill-fill": pillFill,
   } as CSSProperties;
+  const destination = href.trim();
 
   return (
     <a
       ref={ref}
-      href={href}
-      target="_blank"
-      rel="noreferrer"
+      href={destination.length > 0 ? destination : undefined}
+      target={destination.length > 0 ? "_blank" : undefined}
+      rel={destination.length > 0 ? "noreferrer" : undefined}
       onFocus={onFocus}
       onBlur={(): void => {
         setPressed(false);
@@ -510,6 +520,9 @@ function GlassPane({
         isolation: "isolate",
         display: kind === "tile" ? "flex" : "inline-flex",
         width: kind === "tile" ? "100%" : undefined,
+        flex: kind === "chip" ? "0 1 auto" : undefined,
+        alignSelf: kind === "chip" ? "center" : undefined,
+        overflow: kind === "chip" ? "hidden" : undefined,
         maxWidth: "100%",
         minWidth: 0,
         boxSizing: "border-box",
@@ -608,8 +621,54 @@ function GlassPane({
 
 function atHandle(raw: string): string {
   const trimmed = raw.trim();
-  if (trimmed.length === 0) return "";
+  if (trimmed.length === 0 || trimmed === "@") return "";
   return trimmed.startsWith("@") ? trimmed : `@${trimmed}`;
+}
+
+function filled(raw: string): string {
+  return raw.trim();
+}
+
+/**
+ * One emoji cluster: a flag, a keycap, or a pictograph with optional
+ * variation selector, skin tone, flag tags, and ZWJ continuations.
+ */
+const EMOJI_CLUSTER =
+  "(?:\\p{Regional_Indicator}{2}|[#*0-9]\\uFE0F?\\u20E3|\\p{Extended_Pictographic}(?:\\uFE0F|\\uFE0E)?\\p{Emoji_Modifier}?(?:[\\u{E0020}-\\u{E007E}]+\\u{E007F})?(?:\\u200D\\p{Extended_Pictographic}(?:\\uFE0F|\\uFE0E)?\\p{Emoji_Modifier}?(?:[\\u{E0020}-\\u{E007E}]+\\u{E007F})?)*)";
+const TRAILING_EMOJI = new RegExp(`(?:\\s*${EMOJI_CLUSTER})+\\s*$`, "u");
+
+function emojiClusters(run: string): string[] {
+  return run.match(new RegExp(EMOJI_CLUSTER, "gu")) ?? [];
+}
+
+/**
+ * Split a trailing emoji run off a display name. Each cluster is its own
+ * inline box so a long name can still wrap, and a ZWJ sequence stays intact.
+ * No trailing emoji returns an empty cluster list — the hero renders text only.
+ */
+function splitTrailingEmoji(raw: string): { text: string; clusters: readonly string[] } {
+  const match = TRAILING_EMOJI.exec(raw);
+  if (!match) return { text: raw.trim(), clusters: [] };
+  const clusters = emojiClusters(match[0]);
+  if (clusters.length === 0) return { text: raw.trim(), clusters: [] };
+  return { text: raw.slice(0, match.index).trim(), clusters };
+}
+
+/** Half the hero. A lead margin of 0.32em of this glyph is ~0.16em of the h1. */
+const HERO_EMOJI: CSSProperties = {
+  display: "inline-block",
+  fontSize: "0.5em",
+  lineHeight: 1,
+  verticalAlign: "middle",
+  letterSpacing: "0",
+  whiteSpace: "nowrap",
+  textTransform: "none",
+  maxWidth: "100%",
+};
+
+function heroEmojiStyle(index: number, hasText: boolean): CSSProperties {
+  const marginLeft = index === 0 ? (hasText ? "0.32em" : "0") : "0.16em";
+  return { ...HERO_EMOJI, marginLeft };
 }
 
 /** liqui `--lq-text-dim`: the same ink as primary, at 0.55. */
@@ -649,6 +708,7 @@ function avatarRing(theme: ReturnType<typeof useGrokTheme>): CSSProperties {
     flex: `0 0 ${AVATAR_SIZE}px`,
     borderRadius: 9999,
     overflow: "hidden",
+    background: theme.fill.secondary,
     boxShadow: dark ? AVATAR_RING_DARK : AVATAR_RING_LIGHT,
   };
 }
@@ -782,6 +842,7 @@ function pageStyle(theme: ReturnType<typeof useGrokTheme>): CSSProperties {
   return {
     position: "relative",
     width: "100%",
+    maxWidth: "100%",
     minHeight: "100%",
     overflowX: "hidden",
     background: theme.bg.base,
@@ -814,71 +875,52 @@ function bandStyle(): CSSProperties {
   };
 }
 
-function Arrow({ color }: { color: string }): JSX.Element {
-  return (
-    <svg width={18} height={18} viewBox="0 0 18 18" style={{ display: "block", flexShrink: 0 }}>
-      <path
-        d="M4 9h10M10 5l4 4-4 4"
-        fill="none"
-        stroke={color}
-        strokeWidth={1.75}
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
-  );
-}
-
-const NARROW_TILE = 400;
-
-function useNarrowTile(): { narrow: boolean; ref: (node: HTMLDivElement | null) => void } {
-  const [node, setNode] = useState<HTMLDivElement | null>(null);
-  const [narrow, setNarrow] = useState(true);
-  useEffect(() => {
-    if (!node) return;
-    const measure = (): void => {
-      setNarrow(node.clientWidth < NARROW_TILE);
-    };
-    measure();
-    const observer = new ResizeObserver((): void => {
-      measure();
-    });
-    observer.observe(node);
-    return (): void => {
-      observer.disconnect();
-    };
-  }, [node]);
-  return { narrow, ref: setNode };
-}
-
 const FORE: CSSProperties = { position: "relative", zIndex: 1, minWidth: 0 };
+
+/** Chip copy wraps, then ellipsizes, so a long label stays inside the row. */
+const CHIP_LINE: CSSProperties = {
+  ...FORE,
+  flex: "0 1 auto",
+  maxWidth: "100%",
+  overflow: "hidden",
+  display: "-webkit-box",
+  WebkitBoxOrient: "vertical",
+  WebkitLineClamp: 2,
+  overflowWrap: "anywhere",
+  wordBreak: "break-word",
+  textOverflow: "ellipsis",
+};
 
 function InstallTile({ bot }: { bot: Bot }): JSX.Element {
   const theme = useGrokTheme();
-  const pane = useNarrowTile();
   const ring = useFocusRing();
-  const label = theme.kind === "dark" ? GRAPHITE : SILVER;
+  const name = filled(bot.name);
+  const desc = filled(bot.desc);
+  const icon = filled(bot.src);
   return (
-    <div ref={pane.ref} style={{ width: "100%", minWidth: 0 }}>
-      <GlassPane
-        kind="tile"
-        href={bot.href}
-        focused={ring.focused}
-        onFocus={ring.onFocus}
-        onBlur={ring.onBlur}
-        contentStyle={{
-          display: "flex",
-          flexDirection: "column",
-          alignItems: "stretch",
-          gap: 14,
-          width: "100%",
-          padding: 18,
-        }}
-        children={[
-          <div key="row" style={{ display: "flex", alignItems: "center", gap: 14, width: "100%", minWidth: 0 }}>
-            <div style={iconWell(64, 16, theme)}>
-              <Image src={bot.src} alt={`${bot.name} icon`} width={64} height={64} fit="cover" />
-            </div>
+    <GlassPane
+      kind="tile"
+      href={filled(bot.href)}
+      focused={ring.focused}
+      onFocus={ring.onFocus}
+      onBlur={ring.onBlur}
+      contentStyle={{
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "stretch",
+        gap: 14,
+        width: "100%",
+        maxWidth: "100%",
+        minWidth: 0,
+        boxSizing: "border-box",
+        padding: 18,
+      }}
+      children={[
+        <div key="row" style={{ display: "flex", alignItems: "center", gap: 14, width: "100%", minWidth: 0 }}>
+          <div style={iconWell(64, 16, theme)}>
+            {icon.length > 0 ? <Image src={icon} alt={name.length > 0 ? `${name} icon` : "Bot icon"} width={64} height={64} fit="cover" /> : null}
+          </div>
+          {name.length > 0 ? (
             <p
               style={{
                 ...theme.font.heading1,
@@ -896,12 +938,16 @@ function InstallTile({ bot }: { bot: Bot }): JSX.Element {
                 margin: 0,
                 flex: "1 1 auto",
                 minWidth: 0,
+                maxWidth: "100%",
                 overflowWrap: "anywhere",
+                wordBreak: "break-word",
               }}
             >
-              {bot.name}
+              {name}
             </p>
-          </div>,
+          ) : null}
+        </div>,
+        desc.length > 0 ? (
           <p
             key="desc"
             style={{
@@ -917,129 +963,74 @@ function InstallTile({ bot }: { bot: Bot }): JSX.Element {
               textShadow: "var(--bb-ink-shadow)",
               transition: `text-shadow ${MOTION}`,
               margin: 0,
+              maxWidth: "100%",
               overflowWrap: "anywhere",
+              wordBreak: "break-word",
             }}
           >
-            {bot.desc}
-          </p>,
-          <span
-            key="install"
-            style={{
-              ...theme.font.subtext,
-              ...FORE,
-              fontFamily: theme.font.family,
-              display: "inline-flex",
-              alignItems: "center",
-              justifyContent: "center",
-              alignSelf: pane.narrow ? "stretch" : "flex-end",
-              width: pane.narrow ? "100%" : "auto",
-              minWidth: pane.narrow ? 0 : 200,
-              minHeight: 48,
-              boxSizing: "border-box",
-              padding: "0 22px",
-              borderRadius: 999,
-              backgroundColor: "var(--bb-pill-fill)",
-              color: label,
-              boxShadow: PILL_LIP,
-              fontSize: 13,
-              fontWeight: theme.weight.semibold,
-              letterSpacing: "0.1em",
-              textTransform: "uppercase",
-              position: "relative",
-              transition: `background-color ${MOTION}, box-shadow ${MOTION}`,
-            }}
-          >
-            <span
-              aria-hidden
-              style={{
-                position: "absolute",
-                inset: 0,
-                borderRadius: "inherit",
-                overflow: "hidden",
-                pointerEvents: "none",
-              }}
-            >
-              <span
-                style={{
-                  position: "absolute",
-                  left: 0,
-                  right: 0,
-                  top: 0,
-                  height: "52%",
-                  background: PILL_GLOSS,
-                }}
-              />
-            </span>
-            <span
-              style={{
-                position: "relative",
-                zIndex: 1,
-                display: "inline-flex",
-                alignItems: "center",
-                gap: 8,
-                textShadow: "var(--bb-pill-ink-shadow)",
-                filter: "var(--bb-lens-drop)",
-                transition: TYPE_MOTION,
-              }}
-            >
-              Install
-              <Arrow color={label} />
-            </span>
-          </span>,
-        ]}
-      />
-    </div>
+            {desc}
+          </p>
+        ) : null,
+      ]}
+    />
   );
 }
 
 function MiniLink({ link }: { link: Link }): JSX.Element {
   const theme = useGrokTheme();
   const ring = useFocusRing();
-  const showDisplay = link.display.trim().length > 0 && link.display !== link.label;
+  const href = filled(link.href);
+  const display = filled(link.display);
+  const givenLabel = filled(link.label);
+  const label = givenLabel.length > 0 ? givenLabel : display.length > 0 ? "" : href;
+  const showDisplay = display.length > 0 && display !== label;
   return (
     <GlassPane
       kind="chip"
-      href={link.href}
+      href={href}
       focused={ring.focused}
       onFocus={ring.onFocus}
       onBlur={ring.onBlur}
       contentStyle={{
-        display: "inline-flex",
+        display: "flex",
         alignItems: "center",
         gap: 6,
         minHeight: 44,
         maxWidth: "100%",
+        minWidth: 0,
+        boxSizing: "border-box",
+        overflow: "hidden",
         padding: "0 14px",
         ...theme.font.subtext,
         color: theme.text.primary,
       }}
       children={[
-        <span
-          key="label"
-          style={{
-            ...FORE,
-            fontFamily: theme.font.family,
-            fontWeight: theme.weight.semibold,
-            textShadow: "var(--bb-ink-shadow)",
-            transition: `text-shadow ${MOTION}`,
-            overflowWrap: "anywhere",
-          }}
-        >
-          {link.label}
-        </span>,
+        label.length > 0 ? (
+          <span
+            key="label"
+            style={{
+              ...CHIP_LINE,
+              fontFamily: theme.font.family,
+              fontWeight: theme.weight.semibold,
+              textShadow: "var(--bb-ink-shadow)",
+              transition: `text-shadow ${MOTION}`,
+            }}
+          >
+            {label}
+          </span>
+        ) : null,
         showDisplay ? (
           <span
             key="display"
             style={{
-              ...FORE,
+              ...CHIP_LINE,
               fontFamily: theme.font.family,
               color: dimInk(theme.text.primary),
               textShadow: "var(--bb-ink-shadow)",
               transition: `text-shadow ${MOTION}`,
-              overflowWrap: "anywhere",
             }}
           >
-            {link.display}
+            {display}
           </span>
         ) : null,
       ]}
@@ -1050,6 +1041,13 @@ function MiniLink({ link }: { link: Link }): JSX.Element {
 export default function App(): JSX.Element {
   const theme = useGrokTheme();
   const handle = atHandle(HANDLE);
+  const hero = splitTrailingEmoji(DISPLAY_NAME);
+  const bio = filled(BIO);
+  const footer = filled(FOOTER);
+  const avatar = filled(AVATAR);
+  const shownBots = bots.filter((bot) => filled(bot.name).length > 0 || filled(bot.desc).length > 0 || filled(bot.href).length > 0 || filled(bot.src).length > 0);
+  const shownLinks = links.filter((link) => filled(link.label).length > 0 || filled(link.display).length > 0 || filled(link.href).length > 0);
+  const showHero = hero.text.length > 0 || hero.clusters.length > 0;
   const dark = theme.kind === "dark";
   return (
     <div id={LAYOUT} style={pageStyle(theme)}>
@@ -1063,12 +1061,16 @@ export default function App(): JSX.Element {
             textAlign: "center",
             gap: 8,
             width: "100%",
+            maxWidth: "100%",
             minWidth: 0,
           }}
         >
           <div style={avatarRing(theme)}>
-            <Image src={AVATAR} alt={`${DISPLAY_NAME} avatar`} width={AVATAR_SIZE} height={AVATAR_SIZE} fit="cover" />
+            {avatar.length > 0 ? (
+              <Image src={avatar} alt={hero.text.length > 0 ? `${hero.text} avatar` : "Profile avatar"} width={AVATAR_SIZE} height={AVATAR_SIZE} fit="cover" />
+            ) : null}
           </div>
+          {showHero ? (
           <h1
             style={{
               fontFamily: theme.font.family,
@@ -1081,14 +1083,23 @@ export default function App(): JSX.Element {
               textAlign: "center",
               margin: 0,
               width: "100%",
+              maxWidth: "100%",
               minWidth: 0,
+              boxSizing: "border-box",
               overflowWrap: "anywhere",
+              wordBreak: "break-word",
               textShadow: dark ? SOFT_SHADOW_DARK : SOFT_SHADOW_LIGHT,
               filter: dark ? NAME_DROP_DARK : NAME_DROP_LIGHT,
             }}
           >
-            {DISPLAY_NAME}
+            {hero.text}
+            {hero.clusters.map((cluster, index) => (
+              <span key={`hero-emoji-${index}`} style={heroEmojiStyle(index, hero.text.length > 0)}>
+                {cluster}
+              </span>
+            ))}
           </h1>
+          ) : null}
           {handle.length > 0 ? (
             <p
               style={{
@@ -1102,13 +1113,16 @@ export default function App(): JSX.Element {
                 textShadow: dark ? SOFT_SHADOW_DARK : SOFT_SHADOW_LIGHT,
                 margin: 0,
                 width: "100%",
+                maxWidth: "100%",
                 minWidth: 0,
                 overflowWrap: "anywhere",
+                wordBreak: "break-word",
               }}
             >
               {handle}
             </p>
           ) : null}
+          {bio.length > 0 ? (
           <p
             style={{
               fontFamily: theme.font.family,
@@ -1122,30 +1136,47 @@ export default function App(): JSX.Element {
               textShadow: dark ? SOFT_SHADOW_DARK : SOFT_SHADOW_LIGHT,
               margin: "4px 0 0",
               width: "100%",
+              maxWidth: "100%",
               minWidth: 0,
+              whiteSpace: "pre-wrap",
               overflowWrap: "anywhere",
+              wordBreak: "break-word",
             }}
           >
-            {BIO}
+            {bio}
           </p>
+          ) : null}
         </header>
 
-        {bots.length > 0 ? (
-          <section style={{ display: "flex", flexDirection: "column", gap: 14, width: "100%", minWidth: 0 }}>
-            {bots.map((bot, index) => (
+        {shownBots.length > 0 ? (
+          <section style={{ display: "flex", flexDirection: "column", gap: 14, width: "100%", maxWidth: "100%", minWidth: 0 }}>
+            {shownBots.map((bot, index) => (
               <InstallTile key={`${bot.href}-${index}`} bot={bot} />
             ))}
           </section>
         ) : null}
 
-        {links.length > 0 ? (
-          <nav style={{ display: "flex", flexWrap: "wrap", justifyContent: "center", gap: 8, width: "100%", minWidth: 0 }}>
-            {links.map((link, index) => (
-              <MiniLink key={`${link.href}-${index}`} link={link} />
+        {shownLinks.length > 0 ? (
+          <nav
+            style={{
+              display: "flex",
+              flexWrap: "wrap",
+              justifyContent: "center",
+              alignItems: "center",
+              alignContent: "center",
+              gap: 8,
+              width: "100%",
+              maxWidth: "100%",
+              minWidth: 0,
+            }}
+          >
+            {shownLinks.map((link, index) => (
+              <MiniLink key={`${link.href}-${link.label}-${index}`} link={link} />
             ))}
           </nav>
         ) : null}
 
+        {footer.length > 0 ? (
         <p
           style={{
             ...theme.font.caption,
@@ -1157,12 +1188,16 @@ export default function App(): JSX.Element {
             textShadow: dark ? SOFT_SHADOW_DARK : SOFT_SHADOW_LIGHT,
             textAlign: "center",
             margin: "8px 0 0",
+            width: "100%",
+            maxWidth: "100%",
             minWidth: 0,
             overflowWrap: "anywhere",
+            wordBreak: "break-word",
           }}
         >
-          {FOOTER}
+          {footer}
         </p>
+        ) : null}
       </div>
     </div>
   );
