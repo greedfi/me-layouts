@@ -21,7 +21,8 @@ import { useGrokTheme, Image, useEffect, useRef, useState, type CSSProperties, t
  * The glass edge comes from blooms, diagonal bands, and the scrim. Those blooms stay neutral.
  * Color, or any named accent, replaces that field with photoreal liquid-silk plates
  * (teal folds, a cyan ribbon, a peach drop). Silver on color keeps the plates' own palette.
- * A named accent hue-shifts the silk. Day and dark follow the device. Not lacquer.
+ * A named accent hue-shifts the silk. Day keys those plates onto a paper base.
+ * Dark keeps the studio plates. Both follow the device. Not lacquer.
  * No hairline grid.
  * APPEARANCE is not a setup lock. The page follows the opener's device
  * (host light is day, host dark is the charcoal field). A baked night, dark,
@@ -939,8 +940,14 @@ const SILK_PEACH = "data:image/jpeg;base64,/9j/4AAQSkZJRgABAgAAAQABAAD//gAQTGF2Y
 /** Soft top veil so the hero keeps a seat. The silk stays visible under it. */
 const SILK_VEIL_DARK = "radial-gradient(ellipse 64% 18% at 50% 6%, rgba(0,0,0,0.38), rgba(0,0,0,0) 70%)";
 const SILK_VEIL_DAY = "radial-gradient(ellipse 64% 18% at 50% 4%, rgba(255,255,255,0.42), rgba(255,255,255,0) 72%)";
-/** Lifts the darkest day pockets so graphite ink still reads. */
-const SILK_LIFT_DAY = "rgba(255,252,248,0.22)";
+/**
+ * Day plate key. The daylight still holds dark pockets, so a flat wash
+ * left the milky lip flashing. This lifts that black point and puts the
+ * chroma back: teal, cyan, and peach on a paper base. Dark does not use it.
+ */
+const SILK_DAY_KEY = "contrast(0.22) brightness(1.62) saturate(2.15)";
+/** Cool paper under the day plates, in case a drift edge ever clears them. */
+const SILK_PAPER_DAY = "#f3f7f6";
 const SILK_MASK_RIBBON = "linear-gradient(90deg, rgba(0,0,0,0) 0%, rgba(0,0,0,1) 16%, rgba(0,0,0,1) 84%, rgba(0,0,0,0) 100%)";
 const SILK_MASK_PEACH = "radial-gradient(72% 50% at 32% 74%, rgba(0,0,0,1) 0%, rgba(0,0,0,0) 72%)";
 
@@ -1022,15 +1029,31 @@ function GraphiteStage({ look }: { look: BillboardLook }): JSX.Element {
 
 /**
  * Color stage, and any named accent. Photographic silk, not soft blooms.
- * The ground is the teal fold still on a dark device, or its daylight plate.
- * The ribbon and the peach drop screen in on top and drift on their own loops.
- * A named accent hue-shifts the stack. Silver does not. Tiles stay neutral.
+ * Dark keeps the studio plates. Day keys the daylight plate onto paper and
+ * screens the ribbon and peach from the drift layer, so their black sheet
+ * does not cover the light field. Those three loops stay. A named accent
+ * hue-shifts the stack. Silver does not. Tiles stay neutral.
  */
 function SilkStage({ look }: { look: BillboardLook }): JSX.Element {
   const dark = look.dark;
   const ground = dark ? SILK_DARK : SILK_DAY;
+  // Screen lives on the image in the dark stack. That is the studio composite.
+  // On day the drift transform would trap a blend on the image and paint the
+  // black sheet over the paper, so the screen sits on the moving layer.
+  const ribbon: CSSProperties = {
+    mixBlendMode: "screen",
+    opacity: dark ? 0.78 : 0.9,
+    maskImage: SILK_MASK_RIBBON,
+    WebkitMaskImage: SILK_MASK_RIBBON,
+  };
+  const peach: CSSProperties = {
+    mixBlendMode: "screen",
+    opacity: dark ? 0.5 : 0.62,
+    maskImage: SILK_MASK_PEACH,
+    WebkitMaskImage: SILK_MASK_PEACH,
+  };
   return (
-    <div aria-hidden style={{ ...STAGE_FRAME, isolation: "isolate" }}>
+    <div aria-hidden style={{ ...STAGE_FRAME, isolation: "isolate", ...(dark ? {} : { background: SILK_PAPER_DAY }) }}>
       <div
         style={{
           position: "absolute",
@@ -1040,38 +1063,23 @@ function SilkStage({ look }: { look: BillboardLook }): JSX.Element {
         }}
       >
         <Drift name="flowA" style={{ position: "absolute", inset: 0 }}>
-          <img alt="" src={ground} style={{ ...SILK_IMG, objectPosition: dark ? "68% 46%" : "center" }} />
-        </Drift>
-        <Drift name="flowB" style={{ position: "absolute", inset: 0 }}>
           <img
             alt=""
-            src={SILK_RIBBON}
+            src={ground}
             style={{
               ...SILK_IMG,
-              objectPosition: "center 28%",
-              mixBlendMode: "screen",
-              opacity: dark ? 0.78 : 0.4,
-              maskImage: SILK_MASK_RIBBON,
-              WebkitMaskImage: SILK_MASK_RIBBON,
+              objectPosition: dark ? "68% 46%" : "center",
+              ...(dark ? {} : { filter: SILK_DAY_KEY }),
             }}
           />
         </Drift>
-        <Drift name="flowC" style={{ position: "absolute", inset: 0 }}>
-          <img
-            alt=""
-            src={SILK_PEACH}
-            style={{
-              ...SILK_IMG,
-              objectPosition: "28% 72%",
-              mixBlendMode: "screen",
-              opacity: dark ? 0.5 : 0.3,
-              maskImage: SILK_MASK_PEACH,
-              WebkitMaskImage: SILK_MASK_PEACH,
-            }}
-          />
+        <Drift name="flowB" style={{ position: "absolute", inset: 0, ...(dark ? {} : ribbon) }}>
+          <img alt="" src={SILK_RIBBON} style={{ ...SILK_IMG, objectPosition: "center 28%", ...(dark ? ribbon : {}) }} />
+        </Drift>
+        <Drift name="flowC" style={{ position: "absolute", inset: 0, ...(dark ? {} : peach) }}>
+          <img alt="" src={SILK_PEACH} style={{ ...SILK_IMG, objectPosition: "28% 72%", ...(dark ? peach : {}) }} />
         </Drift>
       </div>
-      {!dark ? <div style={{ position: "absolute", inset: 0, background: SILK_LIFT_DAY, pointerEvents: "none" }} /> : null}
       <div style={{ position: "absolute", inset: 0, background: dark ? SILK_VEIL_DARK : SILK_VEIL_DAY, pointerEvents: "none" }} />
     </div>
   );
