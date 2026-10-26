@@ -8,9 +8,12 @@ import { useGrokTheme, Image, useEffect, useRef, useState, type CSSProperties, t
  * Avatar and icons stay solid. The whole tile is the install link.
  * A trailing emoji run on the display name sits beside the hero at half size.
  * Long names, dense chips, and blank fields stay inside the column for any owner.
- * Type is liqui on glass: primary ink, secondary at 0.55 of that ink, the now-playing
- * legibility shadow, tight semibold titles, and a restrained lens drop-shadow so
- * tile titles sit in the glass instead of on it.
+ * Type on tiles is liqui on glass: primary ink, secondary at 0.55 of that ink, the
+ * now-playing legibility shadow, tight semibold titles, and a restrained lens
+ * drop-shadow so tile titles sit in the glass instead of on it.
+ * The display name is glass letterforms only — iPhone lock-screen clock: frost and
+ * a specular rim clipped to the glyphs, stage showing through the strokes.
+ * No pane, tile, or pill behind the name.
  * Tiles and chips lift, wash, and press.
  * The stage has no rule grid. Graphite is neutral blooms and a slow sheen.
  * Color is a glossy liquid field — cyan ribbon, peach drop, teal folds —
@@ -183,11 +186,9 @@ const SOFT_SHADOW_LIGHT = "0 1px 2px rgba(255,255,255,0.78)";
 const SOFT_SHADOW_HOVER_DARK = "0.025em 0.025em 0.05em rgba(0,0,0,0.55)";
 const SOFT_SHADOW_HOVER_LIGHT = "0.025em 0.025em 0.04em rgba(255,255,255,0.9)";
 /**
- * Lens depth under the glyph. freefrontend's label is drop-shadow(0 25px 3px);
- * these are the shorter falls so the shadow stays inside the hero and the tile.
+ * Lens depth under a tile glyph. freefrontend's label is drop-shadow(0 25px 3px);
+ * these are the shorter falls so the shadow stays inside the tile.
  */
-const NAME_DROP_DARK = "drop-shadow(0 0.14em 0.03em rgba(0,0,0,0.55))";
-const NAME_DROP_LIGHT = "drop-shadow(0 0.14em 0.03em rgba(16,16,20,0.35))";
 const LENS_DROP_DARK = "drop-shadow(0 12px 2px rgba(0,0,0,0.4))";
 const LENS_DROP_HOVER_DARK = "drop-shadow(0 7px 2px rgba(0,0,0,0.5))";
 const LENS_DROP_LIGHT = "drop-shadow(0 12px 2px rgba(16,16,20,0.24))";
@@ -696,6 +697,68 @@ function splitTrailingEmoji(raw: string): { text: string; clusters: readonly str
   const clusters = emojiClusters(match[0]);
   if (clusters.length === 0) return { text: raw.trim(), clusters: [] };
   return { text: raw.slice(0, match.index).trim(), clusters };
+}
+
+/**
+ * Display-name glass, clipped to the glyphs (mask-clip: text). Backdrop frost
+ * samples the stage; the sheen is the white rim and the milky body. A mask
+ * image of opaque black is what keeps the frost off the box around the name.
+ * The glyph color has to be opaque or the mask has no letters to clip to;
+ * the fill is cleared so that black never paints.
+ * Sheen size is one line so a wrapped name repeats the highlight per line.
+ */
+const GLASS_GLYPH = "#000000";
+const GLASS_NAME_MASK_IMAGE = `linear-gradient(${GLASS_GLYPH}, ${GLASS_GLYPH})`;
+const GLASS_NAME_SHEEN_SIZE = "100% 1lh";
+const GLASS_NAME_SHEEN_DARK = [
+  "linear-gradient(180deg,",
+  "rgba(255,255,255,0.96) 0%,",
+  "rgba(255,255,255,0.50) 9%,",
+  "rgba(255,255,255,0.18) 34%,",
+  "rgba(255,255,255,0.12) 55%,",
+  "rgba(255,255,255,0.28) 80%,",
+  "rgba(255,255,255,0.70) 100%)",
+].join(" ");
+const GLASS_NAME_SHEEN_LIGHT = [
+  "linear-gradient(180deg,",
+  "rgba(255,255,255,0.95) 0%,",
+  "rgba(255,255,255,0.35) 8%,",
+  "rgba(18,18,20,0.42) 30%,",
+  "rgba(18,18,20,0.55) 58%,",
+  "rgba(18,18,20,0.36) 80%,",
+  "rgba(255,255,255,0.62) 100%)",
+].join(" ");
+const GLASS_NAME_FROST_DARK = "blur(6px) saturate(1.7) brightness(1.25)";
+const GLASS_NAME_FROST_LIGHT = "blur(8px) saturate(1.2) brightness(1.05)";
+const GLASS_NAME_STROKE_DARK = "0.018em rgba(255,255,255,0.80)";
+const GLASS_NAME_STROKE_LIGHT = "0.018em rgba(255,255,255,0.72)";
+const GLASS_NAME_GLOW_DARK = [
+  "drop-shadow(0 0 0.5px rgba(255,255,255,0.95))",
+  "drop-shadow(0 0 0.12em rgba(255,255,255,0.40))",
+  "drop-shadow(0 0.08em 0.03em rgba(0,0,0,0.40))",
+].join(" ");
+const GLASS_NAME_GLOW_LIGHT = [
+  "drop-shadow(0 0 0.5px rgba(255,255,255,0.90))",
+  "drop-shadow(0 0.08em 0.04em rgba(16,16,20,0.35))",
+].join(" ");
+
+/** Inline, so a trailing emoji stays on the same line as a short name. */
+function glassNameStyle(dark: boolean): CSSProperties {
+  return {
+    color: GLASS_GLYPH,
+    WebkitTextFillColor: CLEAR,
+    backgroundImage: dark ? GLASS_NAME_SHEEN_DARK : GLASS_NAME_SHEEN_LIGHT,
+    backgroundSize: GLASS_NAME_SHEEN_SIZE,
+    backgroundRepeat: "repeat-y",
+    WebkitMaskImage: GLASS_NAME_MASK_IMAGE,
+    maskImage: GLASS_NAME_MASK_IMAGE,
+    WebkitMaskClip: "text",
+    maskClip: "text",
+    WebkitBackdropFilter: dark ? GLASS_NAME_FROST_DARK : GLASS_NAME_FROST_LIGHT,
+    backdropFilter: dark ? GLASS_NAME_FROST_DARK : GLASS_NAME_FROST_LIGHT,
+    WebkitTextStroke: dark ? GLASS_NAME_STROKE_DARK : GLASS_NAME_STROKE_LIGHT,
+    filter: dark ? GLASS_NAME_GLOW_DARK : GLASS_NAME_GLOW_LIGHT,
+  };
 }
 
 /** Half the hero. A lead margin of 0.32em of this glyph is ~0.16em of the h1. */
@@ -1597,11 +1660,9 @@ export default function App(): JSX.Element {
               boxSizing: "border-box",
               overflowWrap: "anywhere",
               wordBreak: "break-word",
-              textShadow: dark ? SOFT_SHADOW_DARK : SOFT_SHADOW_LIGHT,
-              filter: dark ? NAME_DROP_DARK : NAME_DROP_LIGHT,
             }}
           >
-            {hero.text}
+            {hero.text.length > 0 ? <span style={glassNameStyle(dark)}>{hero.text}</span> : null}
             {hero.clusters.map((cluster, index) => (
               <span key={`hero-emoji-${index}`} style={heroEmojiStyle(index, hero.text.length > 0)}>
                 {cluster}
