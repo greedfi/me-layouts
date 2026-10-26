@@ -11,9 +11,10 @@ import { useGrokTheme, Image, useEffect, useRef, useState, type CSSProperties, t
  * Type is one see-through face: silver at 0.82 on a dark device, near-solid
  * graphite on a light device, plus the now-playing legibility shadow. Dark
  * still shows the field through the strokes. Day is dense enough to read on
- * paper. Same face for the hero, the handle, the bio, and the footer.
- * Tile titles, descriptions, and chips use that face a step greyer so they
- * sit in the glass on both devices. No forced uppercase, no wide tracking.
+ * paper. Same face for the handle, the bio, and the footer.
+ * The display name uses the tile ink: the greyer see-through face of the
+ * titles, descriptions, and chips, so the silk shows through the same way.
+ * No forced uppercase, no wide tracking.
  * The display name is those letterforms only — no pane, tile, or pill behind it.
  * Weight and size carry the hierarchy: name, then handle, then bio.
  * Tiles and chips lift, wash, and press. The rim is one rounded rect: a crisp
@@ -194,19 +195,20 @@ const SOFT_SHADOW_HOVER_LIGHT = "0.025em 0.025em 0.04em rgba(18,18,20,0.32)";
 const SILVER = "#f4f5f7";
 const GRAPHITE = "#121214";
 /**
- * One see-through ink. 0.82 of silver on a dark device. Day is 0.96 of graphite
+ * Body see-through ink. 0.82 of silver on a dark device. Day is 0.96 of graphite
  * so the same face reads on paper. 0.55 went ghost-faint; opaque
- * theme.text.primary stamps the glass. The same ink is the hero, the handle,
- * the bio, tiles, chips, and the footer.
+ * theme.text.primary stamps the glass. This ink is the handle, the bio, and
+ * the footer. The display name uses the tile ink below.
  */
 const SEE_MIX = "82%";
 const SEE_DAY_MIX = "96%";
 const SEE_DARK = `color-mix(in srgb, ${SILVER} ${SEE_MIX}, ${CLEAR})`;
 const SEE_DAY = `color-mix(in srgb, ${GRAPHITE} ${SEE_DAY_MIX}, ${CLEAR})`;
 /**
- * Tile and chip ink. Same see-through mix as the hero, on a greyer silver
- * and a greyer graphite, so the copy sits in the pane. Opaque near-black
+ * Display-name, tile, and chip ink. A greyer silver and a greyer graphite
+ * than the body face, so the copy sits in the glass. Opaque near-black
  * stamps the glass. A clearer mix lets the silk chroma take the strokes.
+ * The hero name uses this ink. Handle, bio, and footer stay on the body face.
  */
 const TILE_SILVER = "#d5dae1";
 const TILE_GRAPHITE = "#3a4048";
@@ -739,7 +741,7 @@ type BillboardLook = {
   /** A dark device uses the dark glass stack. A light device uses the day stack. */
   dark: boolean;
   ink: string;
-  /** Tile titles, descriptions, and chips. A greyer step of the same face. */
+  /** Display name, tile titles, descriptions, and chips. The greyer see-through face. */
   glassInk: string;
   bg: string;
   well: string;
@@ -1679,7 +1681,7 @@ export default function App(): JSX.Element {
           <h1
             style={{
               fontFamily: theme.font.family,
-              color: look.ink,
+              color: look.glassInk,
               fontSize: "clamp(46px, 13vw, 72px)",
               lineHeight: 0.96,
               fontWeight: theme.weight.semibold,
