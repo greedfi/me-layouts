@@ -5,6 +5,8 @@
  * Look tracks layouts/billboard/page.canvas.tsx. Fill this file the same way
  * the canvas pack is filled: the string initializers below appear once each.
  * Replace the whole bots array and the whole links array. Leave the rest.
+ * PAGE_TITLE is the browser tab. Fill it with the username, or the display name.
+ * GA_MEASUREMENT_ID and META_PIXEL_ID stay placeholders unless the owner opts in later.
  * APPEARANCE is ignored. Day and dark follow prefers-color-scheme.
  * Silk plates are local files under assets/. Do not point them at a CDN.
  */
@@ -17,6 +19,9 @@ const FOOTER = "__FOOTER__";
 const APPEARANCE = "__APPEARANCE__";
 const STAGE = "__STAGE__";
 const ACCENT = "__ACCENT__";
+const PAGE_TITLE = "__PAGE_TITLE__";
+const GA_MEASUREMENT_ID = "__GA_MEASUREMENT_ID__";
+const META_PIXEL_ID = "__META_PIXEL_ID__";
 
 const bots = [
   {
@@ -442,6 +447,33 @@ function atHandle(raw) {
   const trimmed = filled(raw);
   if (trimmed.length === 0 || trimmed === "@") return "";
   return trimmed.startsWith("@") ? trimmed : "@" + trimmed;
+}
+
+/** A fill token still equal to its placeholder, or blank, is unset. */
+function optedToken(raw) {
+  const value = filled(raw);
+  if (value.length === 0 || /^__.+__$/.test(value)) return "";
+  return value;
+}
+
+/**
+ * Browser tab. PAGE_TITLE (username, or display name) wins.
+ * Otherwise a filled display name, then a filled handle.
+ * Placeholders never become the title.
+ */
+function pageTitle() {
+  const page = optedToken(PAGE_TITLE);
+  if (page.length > 0) return page;
+  const hero = splitTrailingEmoji(filled(DISPLAY_NAME));
+  if (hero.text.length > 0 && !/^__.+__$/.test(hero.text)) return hero.text;
+  const handle = optedToken(HANDLE);
+  if (handle.length === 0) return "";
+  return handle.startsWith("@") ? handle : "@" + handle;
+}
+
+function applyTabTitle() {
+  const title = pageTitle();
+  if (title.length > 0) document.title = title;
 }
 
 function emojiClusters(run) {
@@ -876,7 +908,97 @@ function applyDocument(look) {
   meta.setAttribute("content", ground);
 }
 
+function installOptionalTrackers() {
+  const ga = optedToken(GA_MEASUREMENT_ID);
+  if (/^G-[A-Z0-9]+$/i.test(ga) && !document.getElementById("bb-ga")) {
+    window.dataLayer = window.dataLayer || [];
+    window.gtag = function () {
+      window.dataLayer.push(arguments);
+    };
+    window.gtag("js", new Date());
+    window.gtag("config", ga, {
+      anonymize_ip: true,
+      allow_google_signals: false,
+      allow_ad_personalization_signals: false,
+    });
+    const script = document.createElement("script");
+    script.id = "bb-ga";
+    script.async = true;
+    script.src = "https://www.googletagmanager.com/gtag/js?id=" + encodeURIComponent(ga);
+    document.head.append(script);
+  }
+  const meta = optedToken(META_PIXEL_ID);
+  if (/^\d{5,20}$/.test(meta) && !document.getElementById("bb-meta")) {
+    const script = document.createElement("script");
+    script.id = "bb-meta";
+    script.textContent =
+      "!function(f,b,e,v,n,t,s){if(f.fbq)return;n=f.fbq=function(){n.callMethod?n.callMethod.apply(n,arguments):n.queue.push(arguments)};if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';n.queue=[];t=b.createElement(e);t.async=!0;t.src=v;s=b.getElementsByTagName(e)[0];s.parentNode.insertBefore(t,s)}(window,document,'script','https://connect.facebook.net/en_US/fbevents.js');fbq('init','" +
+      meta +
+      "');fbq('track','PageView');";
+    document.head.append(script);
+  }
+}
+
+function outboundHit(anchor) {
+  const kind = anchor.dataset.kind === "tile" ? "bot" : anchor.dataset.kind === "chip" ? "link" : "";
+  if (!kind) return null;
+  const href = anchor.getAttribute("href") || "";
+  if (href.length === 0 || href.startsWith("__")) return null;
+  let label = anchor.getAttribute("aria-label") || "";
+  if (label.trim().length === 0) {
+    const name = anchor.querySelector(".tile-name");
+    label = name && name.textContent ? name.textContent : "";
+  }
+  label = label.replace(/\s+/g, " ").trim();
+  return { kind, label, href };
+}
+
+/** Click listener only. Navigation is left to the browser. */
+function trackOutbound(anchor) {
+  const hit = outboundHit(anchor);
+  if (!hit) return;
+  const data = { kind: hit.kind, label: hit.label, href: hit.href };
+  if (typeof window.va === "function") {
+    window.va("event", { name: "outbound_click", data: data });
+  }
+  if (typeof window.gtag === "function") {
+    window.gtag("event", "outbound_click", { kind: hit.kind, label: hit.label, href: hit.href, link_url: hit.href });
+  }
+  const payload = JSON.stringify({ kind: hit.kind, label: hit.label, href: hit.href, ts: Date.now() });
+  try {
+    if (typeof navigator.sendBeacon === "function") {
+      const body = new Blob([payload], { type: "application/json" });
+      if (navigator.sendBeacon("/api/hit", body)) return;
+    }
+  } catch (err) {
+    /* fall through to fetch */
+  }
+  try {
+    fetch("/api/hit", {
+      method: "POST",
+      body: payload,
+      headers: { "Content-Type": "application/json" },
+      keepalive: true,
+    }).catch(function () {});
+  } catch (err) {
+    /* the link still navigates */
+  }
+}
+
+function installOutboundTracking() {
+  if (document.documentElement.dataset.bbClicks === "1") return;
+  document.documentElement.dataset.bbClicks = "1";
+  document.addEventListener("click", function (event) {
+    const target = event.target;
+    if (!target || typeof target.closest !== "function") return;
+    const anchor = target.closest("a.glass");
+    if (!anchor) return;
+    trackOutbound(anchor);
+  });
+}
+
 function render() {
+  applyTabTitle();
   for (const observer of observers) observer.disconnect();
   observers = [];
   document.querySelector("[data-bb-stage]")?.remove();
@@ -894,7 +1016,6 @@ function render() {
   const footer = filled(FOOTER);
   const avatar = imageSrc(AVATAR);
   const showHero = hero.text.length > 0 || hero.clusters.length > 0;
-  if (hero.text.length > 0 && !/^__.+__$/.test(hero.text)) document.title = hero.text;
 
   const band = el("div", "band");
   const mast = el("header", "mast");
@@ -957,6 +1078,9 @@ function render() {
 }
 
 function boot() {
+  applyTabTitle();
+  installOptionalTrackers();
+  installOutboundTracking();
   render();
   const mq = window.matchMedia("(prefers-color-scheme: dark)");
   const onChange = () => render();
