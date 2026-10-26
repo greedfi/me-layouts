@@ -1,7 +1,8 @@
-import { access, cp, mkdir, readFile, rm } from "node:fs/promises";
+import { access, cp, mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { spawnSync } from "node:child_process";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { escapeTitle, htmlTitle } from "./page-title.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const out = path.join(root, "out");
@@ -21,6 +22,9 @@ for (const token of [
   "const APPEARANCE",
   "const STAGE",
   "const ACCENT",
+  "const PAGE_TITLE",
+  "const GA_MEASUREMENT_ID",
+  "const META_PIXEL_ID",
   "const bots",
   "const links",
   'const LAYOUT = "billboard"',
@@ -29,6 +33,16 @@ for (const token of [
     console.error(`billboard.js is missing fill marker: ${token}`);
     process.exit(1);
   }
+}
+for (const needle of ["outbound_click", "/api/hit", "sendBeacon", "function pageTitle", "function trackOutbound"]) {
+  if (!source.includes(needle)) {
+    console.error(`billboard.js is missing analytics marker: ${needle}`);
+    process.exit(1);
+  }
+}
+if (source.includes("preventDefault")) {
+  console.error("billboard.js must not cancel tile or chip clicks");
+  process.exit(1);
 }
 
 const css = await readFile(path.join(root, "billboard.css"), "utf8");
@@ -50,10 +64,43 @@ for (const name of ["inter-regular.woff2", "inter-medium.woff2", "inter-semibold
   await access(path.join(root, "assets", name));
 }
 
+const hitApi = path.join(root, "api", "hit.js");
+await access(hitApi);
+const hitSource = await readFile(hitApi, "utf8");
+if (!hitSource.includes("billboard/clicks.json") || !hitSource.includes("BLOB_READ_WRITE_TOKEN")) {
+  console.error("api/hit.js is missing the Blob count store");
+  process.exit(1);
+}
+
+let html = await readFile(path.join(root, "index.html"), "utf8");
+if (/<title>[^<]*Billboard/i.test(html)) {
+  console.error("index.html title must not contain Billboard");
+  process.exit(1);
+}
+if (!html.includes("<title></title>")) {
+  console.error("index.html is missing an empty <title> for PAGE_TITLE");
+  process.exit(1);
+}
+for (const needle of ["window.va", "window.si", "/_vercel/insights/script.js", "/_vercel/speed-insights/script.js"]) {
+  if (!html.includes(needle)) {
+    console.error(`index.html is missing analytics script: ${needle}`);
+    process.exit(1);
+  }
+}
+html = html.replace("<title></title>", "<title>" + escapeTitle(htmlTitle(source)) + "</title>");
+
 await rm(out, { recursive: true, force: true });
 await mkdir(out, { recursive: true });
-for (const file of ["index.html", "billboard.css", "billboard.js"]) {
+await writeFile(path.join(out, "index.html"), html);
+for (const file of ["billboard.css", "billboard.js"]) {
   await cp(path.join(root, file), path.join(out, file));
 }
 await cp(path.join(root, "assets"), path.join(out, "assets"), { recursive: true });
+
+const check = spawnSync(process.execPath, [path.join(root, "scripts", "check-hit.mjs")], {
+  cwd: root,
+  stdio: "inherit",
+});
+if (check.status !== 0) process.exit(check.status ?? 1);
+
 console.log("billboard static export → out/");

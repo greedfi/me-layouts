@@ -3,7 +3,8 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-    <title>Billboard</title>
+    <!-- Tab title comes from PAGE_TITLE in billboard.js. -->
+    <title></title>
     <script>
       document.documentElement.dataset.appearance = matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "day";
     </script>
@@ -18,6 +19,14 @@
   </head>
   <body>
     <div id="billboard" class="page"></div>
+    <script>
+      window.va = window.va || function () { (window.vaq = window.vaq || []).push(arguments); };
+    </script>
+    <script defer src="/_vercel/insights/script.js"></script>
+    <script>
+      window.si = window.si || function () { (window.siq = window.siq || []).push(arguments); };
+    </script>
+    <script defer src="/_vercel/speed-insights/script.js"></script>
     <script src="billboard.js"></script>
   </body>
 </html>
