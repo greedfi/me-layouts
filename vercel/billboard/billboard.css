@@ -385,16 +385,6 @@ body {
   display: block;
 }
 
-.mark-eye {
-  position: absolute;
-  left: 50%;
-  top: 50%;
-  border-radius: 999px;
-  background: #fff;
-  pointer-events: none;
-  z-index: 2;
-}
-
 @media (hover: hover) {
   .glass-tile:hover {
     transform: translateY(-3px);
