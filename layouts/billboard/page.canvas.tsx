@@ -70,11 +70,11 @@ const STAGE = "__STAGE__";
 /** Named hues tint the stage field. Unset and silver leave the device base. Tiles and chips stay neutral. */
 const ACCENT = "__ACCENT__";
 /**
- * Corner-mark href. Leave the placeholder until .links publishes the
- * template-to-share URL. Empty, "#", or a still-placeholder token keeps the
- * chip and does not navigate. Not an install URL.
+ * Corner-mark href. Default is the published .links Install URL.
+ * Fillers may leave it or overwrite. Empty, "#", or a still-placeholder
+ * token keeps the chip and does not navigate.
  */
-const LINKS_SHARE_HREF = "__LINKS_SHARE_HREF__";
+const LINKS_SHARE_HREF = "https://x.ai/bot/iAAjk66qgHyqOys2TEC-K";
 
 type Bot = {
   name: string;

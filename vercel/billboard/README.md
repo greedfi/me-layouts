@@ -6,7 +6,7 @@ Static port of `layouts/billboard/page.canvas.tsx` for a Vercel deploy. The canv
 
 ## Fill contract for `.links`
 
-`.links` fetches this directory from `main` when an owner picks the Vercel route. The tokens below stay placeholders on `main`. Each deploy is that owner only. Do not bake a username, a bio, or an avatar into the template.
+`.links` fetches this directory from `main` when an owner picks the Vercel route. The tokens below stay placeholders on `main`, except `LINKS_SHARE_HREF`, which ships as the published .links Install URL. Each deploy is that owner only. Do not bake a username, a bio, or an avatar into the template.
 
 1. Fetch this directory from `main` (`vercel/billboard/`).
 2. Confirm `const LAYOUT = "billboard"` in `billboard.js`.
@@ -26,13 +26,13 @@ Static port of `layouts/billboard/page.canvas.tsx` for a Vercel deploy. The canv
 | `OG_IMAGE_URL` | `__OG_IMAGE_URL__` | Absolute `https://` URL of **this user's** avatar file from step 6 |
 | `GA_MEASUREMENT_ID` | `__GA_MEASUREMENT_ID__` | Optional later. Leave the placeholder. `.me` does not ask for this at setup. A real `G-…` id loads GA4. Empty or still `__…__` injects nothing |
 | `META_PIXEL_ID` | `__META_PIXEL_ID__` | Optional later. Leave the placeholder. `.me` does not ask for this at setup. A numeric Pixel id loads a minimal PageView pixel. Empty or still `__…__` injects nothing |
-| `LINKS_SHARE_HREF` | `__LINKS_SHARE_HREF__` | Href of the corner mark. Leave the placeholder until .links publishes the template-to-share URL. Do not invent one. The chip is always rendered. Empty, `#`, or the placeholder does not navigate. `assets/links-mark.png` is product chrome (transparent sphere; the eyes are in that image). The chip shows that image alone. Not this user's avatar and not the unfurl image |
+| `LINKS_SHARE_HREF` | `https://x.ai/bot/iAAjk66qgHyqOys2TEC-K` | Href of the corner mark. The pack ships with this published .links Install URL as the default for every user. Fillers may leave it as-is or overwrite `LINKS_SHARE_HREF`. The chip is always rendered. Empty, `#`, or a still-placeholder `__…__` token does not navigate. `assets/links-mark.png` is product chrome (transparent sphere; the eyes are in that image). The chip shows that image alone. Not this user's avatar and not the unfurl image |
 
 4. Replace the whole `bots` array. One object per bot, same keys, 0–N entries.
 5. Replace the whole `links` array the same way.
 6. Write **this user's** unfurl image, then point `OG_IMAGE_URL` at it. See [Unfurl](#unfurl).
 
-Values are JavaScript double-quoted string literals. Escape `\`, `"`, and newlines (`\n` in `BIO` and `PAGE_TITLE`). Do not leave the example placeholders in a filled page. Two exceptions stay placeholders unless the owner opts in later: `GA_MEASUREMENT_ID` and `META_PIXEL_ID`. Do not ask for those at setup. Do not add a second bots source.
+Values are JavaScript double-quoted string literals. Escape `\`, `"`, and newlines (`\n` in `BIO` and `PAGE_TITLE`). Do not leave the example placeholders in a filled page. `LINKS_SHARE_HREF` already ships as the published .links Install URL; leave that string or overwrite it. Two exceptions stay placeholders unless the owner opts in later: `GA_MEASUREMENT_ID` and `META_PIXEL_ID`. Do not ask for those at setup. Do not add a second bots source.
 
 Bot object:
 
@@ -138,4 +138,4 @@ From this directory (`vercel/billboard`), or with the Vercel project **Root Dire
 
 On the new project: enable Web Analytics, and connect a private Blob store (Hobby, included, no charge inside the allowance). Leave Speed Insights Plus off. The free Speed Insights script is already in the page. Do not ask for a GA or Meta id.
 
-Root Directory deploy runs this build after fill and does not need a prebuilt `out/`. While `const PAGE_TITLE = "__PAGE_TITLE__"` is still in `billboard.js`, the build checks the pack placeholders: an empty `<title>`, and one each of `__PAGE_TITLE__`, `__DISPLAY_NAME__`, and `__AVATAR_DATA_URI__` (plus the GA and Meta tokens). After `PAGE_TITLE` is filled, those template checks are skipped. The shipped tab title must be non-empty and must not be the word Billboard. `/api/hit` checks still run either way, and the command exits 0 for a filled page.
+Root Directory deploy runs this build after fill and does not need a prebuilt `out/`. While `const PAGE_TITLE = "__PAGE_TITLE__"` is still in `billboard.js`, the build checks the pack placeholders: an empty `<title>`, and one each of `__PAGE_TITLE__`, `__DISPLAY_NAME__`, and `__AVATAR_DATA_URI__` (plus the GA and Meta tokens), and that `LINKS_SHARE_HREF` is still the published Install URL. After `PAGE_TITLE` is filled, those template checks are skipped. The shipped tab title must be non-empty and must not be the word Billboard. `/api/hit` checks still run either way, and the command exits 0 for a filled page.

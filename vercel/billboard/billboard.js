@@ -24,8 +24,8 @@ const PAGE_TITLE = "__PAGE_TITLE__";
 const OG_IMAGE_URL = "__OG_IMAGE_URL__";
 const GA_MEASUREMENT_ID = "__GA_MEASUREMENT_ID__";
 const META_PIXEL_ID = "__META_PIXEL_ID__";
-/** Corner-mark href. Leave the placeholder until the share URL exists. Not an install URL. */
-const LINKS_SHARE_HREF = "__LINKS_SHARE_HREF__";
+/** Corner-mark href. Default is the published .links Install URL. Fillers may leave it or overwrite. Empty, "#", or a still-placeholder token does not navigate. */
+const LINKS_SHARE_HREF = "https://x.ai/bot/iAAjk66qgHyqOys2TEC-K";
 /** Product chrome. Not a fill token and not this user's avatar. Eyes are in this image. */
 const LINKS_MARK = "assets/links-mark.png";
 
