@@ -26,7 +26,7 @@ Static port of `layouts/billboard/page.canvas.tsx` for a Vercel deploy. The canv
 | `OG_IMAGE_URL` | `__OG_IMAGE_URL__` | Absolute `https://` URL of **this user's** avatar file from step 6 |
 | `GA_MEASUREMENT_ID` | `__GA_MEASUREMENT_ID__` | Optional later. Leave the placeholder. `.me` does not ask for this at setup. A real `G-…` id loads GA4. Empty or still `__…__` injects nothing |
 | `META_PIXEL_ID` | `__META_PIXEL_ID__` | Optional later. Leave the placeholder. `.me` does not ask for this at setup. A numeric Pixel id loads a minimal PageView pixel. Empty or still `__…__` injects nothing |
-| `LINKS_SHARE_HREF` | `__LINKS_SHARE_HREF__` | Href of the corner mark. Leave the placeholder until .links publishes the template-to-share URL. Do not invent one. The chip is always rendered. Empty, `#`, or the placeholder does not navigate. `assets/links-mark.png` is product chrome (transparent sphere, live pill eyes), not this user's avatar and not the unfurl image |
+| `LINKS_SHARE_HREF` | `__LINKS_SHARE_HREF__` | Href of the corner mark. Leave the placeholder until .links publishes the template-to-share URL. Do not invent one. The chip is always rendered. Empty, `#`, or the placeholder does not navigate. `assets/links-mark.png` is product chrome (transparent sphere, static white pill eyes), not this user's avatar and not the unfurl image |
 
 4. Replace the whole `bots` array. One object per bot, same keys, 0–N entries.
 5. Replace the whole `links` array the same way.

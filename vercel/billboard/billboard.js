@@ -28,24 +28,10 @@ const META_PIXEL_ID = "__META_PIXEL_ID__";
 const LINKS_SHARE_HREF = "__LINKS_SHARE_HREF__";
 /** Product chrome. Not a fill token and not this user's avatar. */
 const LINKS_MARK = "assets/links-mark.png";
-/**
- * Left-bar eye follow. Same constants as the canvas mark and the Grok Bot
- * sidebar avatar. Reach Jb = 2. Ease Yb = 0.14 once per frame, snap 0.001.
- * Hold fades 0↔1; the first sample while hold is 0 snaps the gaze, then hold
- * eases in. Sphere yaw 18° / pitch 14°, scaled by Zb = 0.55 because the
- * sidebar idle clip is playing. Head nudge is 0.03 / 0.024 of the radius.
- */
-const GAZE_REACH = 2;
-const GAZE_YB = 0.14;
-const GAZE_SNAP = 0.001;
-const GAZE_YAW = 18;
-const GAZE_PITCH = 14;
-const GAZE_ZB = 0.55;
-const GAZE_PX = 0.03;
-const GAZE_PY = 0.024;
+/** Static white pills on the sphere, as a fraction of the 36px face. They do not follow the pointer. */
 const MARK_EYES = [
-  { x: 0.1636, y: 0.2025, z: 0.9656, w: 0.0534, h: 0.1396, rot: 10 },
-  { x: 0.6942, y: 0.1901, z: 0.6942, w: 0.0493, h: 0.1314, rot: 3 },
+  { x: 0.1636, y: 0.2025, w: 0.0534, h: 0.1396, rot: 10 },
+  { x: 0.6942, y: 0.1901, w: 0.0493, h: 0.1314, rot: 3 },
 ];
 
 const bots = [
@@ -905,133 +891,12 @@ function miniLink(link) {
   return chip;
 }
 
-/** Qy(yaw) · Qx(pitch) on the unit sphere, then the sidebar head nudge. */
-function markEyePose(eye, gx, gy, hold) {
-  const q = GAZE_ZB * hold;
-  const yaw = (GAZE_YAW * gx * q * Math.PI) / 180;
-  const pitch = (-GAZE_PITCH * gy * q * Math.PI) / 180;
-  const cy = Math.cos(yaw);
-  const sy = Math.sin(yaw);
-  const cp = Math.cos(pitch);
-  const sp = Math.sin(pitch);
-  const y1 = eye.y * cp - eye.z * sp;
-  const z1 = eye.y * sp + eye.z * cp;
-  const x2 = eye.x * cy + z1 * sy;
-  const z2 = -eye.x * sy + z1 * cy;
+/** Rest placement on the sphere. No yaw, pitch, or pointer nudge. */
+function markEyeRest(eye) {
   const radius = 18;
-  return {
-    dx: (x2 + GAZE_PX * gx * q) * radius,
-    dy: -(y1 + GAZE_PY * gy * q) * radius,
-    visible: z2 > 0.05,
-  };
-}
-
-function markEyeTransform(eye, dx, dy) {
-  const x = Math.round(dx * 1000) / 1000;
-  const y = Math.round(dy * 1000) / 1000;
+  const x = Math.round(eye.x * radius * 1000) / 1000;
+  const y = Math.round(-eye.y * radius * 1000) / 1000;
   return "translate(-50%, -50%) translate(" + x + "px, " + y + "px) rotate(" + eye.rot + "deg)";
-}
-
-function gazeStep(current, target) {
-  const next = current + (target - current) * GAZE_YB;
-  return Math.abs(target - next) < GAZE_SNAP ? target : next;
-}
-
-/** One listener. render() swaps the face node; the gaze state stays. */
-const markGaze = {
-  face: null,
-  eyes: [],
-  held: false,
-  x: 0,
-  y: 0,
-  cx: 0,
-  cy: 0,
-  hold: 0,
-  raf: 0,
-  armed: false,
-};
-
-function paintMarkEyes() {
-  for (let i = 0; i < markGaze.eyes.length; i++) {
-    const eye = MARK_EYES[i];
-    const node = markGaze.eyes[i];
-    if (!eye || !node) continue;
-    const pose = markEyePose(eye, markGaze.cx, markGaze.cy, markGaze.hold);
-    node.style.transform = markEyeTransform(eye, pose.dx, pose.dy);
-    node.style.opacity = pose.visible ? "1" : "0";
-  }
-}
-
-function markGazeSettled() {
-  const goal = markGaze.held ? 1 : 0;
-  return markGaze.hold === goal && (!markGaze.held || (markGaze.cx === markGaze.x && markGaze.cy === markGaze.y));
-}
-
-function stepMarkGaze() {
-  markGaze.raf = 0;
-  if (!markGaze.held && markGaze.hold === 0) {
-    paintMarkEyes();
-    return;
-  }
-  markGaze.cx = gazeStep(markGaze.cx, markGaze.x);
-  markGaze.cy = gazeStep(markGaze.cy, markGaze.y);
-  markGaze.hold = gazeStep(markGaze.hold, markGaze.held ? 1 : 0);
-  paintMarkEyes();
-  if (!markGazeSettled()) markGaze.raf = window.requestAnimationFrame(stepMarkGaze);
-}
-
-function wakeMarkGaze() {
-  if (markGaze.raf) return;
-  markGaze.raf = window.requestAnimationFrame(stepMarkGaze);
-}
-
-function setMarkGaze(gx, gy) {
-  if (gx == null || gy == null) markGaze.held = false;
-  else {
-    const x = Math.max(-1, Math.min(1, gx));
-    const y = Math.max(-1, Math.min(1, gy));
-    markGaze.held = true;
-    markGaze.x = x;
-    markGaze.y = y;
-    if (markGaze.hold === 0) {
-      markGaze.cx = x;
-      markGaze.cy = y;
-    }
-  }
-  wakeMarkGaze();
-}
-
-function onMarkPointerMove(event) {
-  if (!markGaze.face || event.pointerType === "touch") return;
-  const rect = markGaze.face.getBoundingClientRect();
-  const reach = Math.max(rect.width, 1) * GAZE_REACH;
-  setMarkGaze((event.clientX - (rect.left + rect.width / 2)) / reach, -(event.clientY - (rect.top + rect.height / 2)) / reach);
-}
-
-function onMarkPointerOut(event) {
-  if (event.relatedTarget == null) setMarkGaze(null, null);
-}
-
-function onMarkBlur() {
-  setMarkGaze(null, null);
-}
-
-function armMarkGaze() {
-  if (markGaze.armed) return;
-  const fine = window.matchMedia("(hover: hover) and (pointer: fine)").matches;
-  const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-  if (!fine || reduce) return;
-  markGaze.armed = true;
-  window.addEventListener("pointermove", onMarkPointerMove, { passive: true });
-  window.addEventListener("pointerout", onMarkPointerOut);
-  window.addEventListener("blur", onMarkBlur);
-}
-
-function bindMarkGaze(face) {
-  markGaze.face = face;
-  markGaze.eyes = Array.prototype.slice.call(face.querySelectorAll(".mark-eye"));
-  paintMarkEyes();
-  armMarkGaze();
 }
 
 /** Default corner control. Same chip glass as the social row. Always rendered. */
@@ -1049,12 +914,10 @@ function linksMark() {
     pill.setAttribute("aria-hidden", "true");
     pill.style.width = eye.w * 36 + "px";
     pill.style.height = eye.h * 36 + "px";
-    const rest = markEyePose(eye, 0, 0, 0);
-    pill.style.opacity = rest.visible ? "1" : "0";
-    pill.style.transform = markEyeTransform(eye, rest.dx, rest.dy);
+    pill.style.opacity = "1";
+    pill.style.transform = markEyeRest(eye);
     face.append(pill);
   }
-  bindMarkGaze(face);
   const chip = glassPane("chip", shareHref(LINKS_SHARE_HREF), "Links", face);
   chip.classList.add("product-mark");
   // Outside the social row. Outbound counts stay on tile and chip kinds only.
