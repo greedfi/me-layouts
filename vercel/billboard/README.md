@@ -10,7 +10,7 @@ Static port of `layouts/billboard/page.canvas.tsx` for a Vercel deploy. The canv
 
 1. Fetch this directory from `main` (`vercel/billboard/`).
 2. Confirm `const LAYOUT = "billboard"` in `billboard.js`.
-3. Replace these string initializers in `billboard.js` (they appear once each). Write this user's avatar file in step 6. Leave the renderer, the CSS, and the silk plates alone.
+3. Replace these string initializers in `billboard.js` (they appear once each). Write this user's avatar file in step 6. Leave the renderer, the CSS, and the silk plates alone. `SILK_DARK`, `SILK_DAY`, `SILK_RIBBON`, and `SILK_PEACH` ship at **≥1080px** on the short side. Copy those pack bytes as-is — never downsample, never ship a slim silk variant.
 
 | Constant | Token | After fill |
 |----------|--------|------------|
@@ -59,7 +59,7 @@ Link object:
 
 Chips are `<a href>` elements. The icon comes from the label and the href host (X, GitHub, YouTube, LinkedIn, and the same set as the canvas pack). The words stay on the accessible name.
 
-`STAGE` / `ACCENT` behavior matches the root README: `color` is the photographic liquid-silk field; a named accent hue-shifts that silk and leaves tiles and chips neutral; `silver` does not force a hue. Silk files are `assets/silk-dark.jpg`, `assets/silk-day.jpg`, `assets/silk-ribbon.jpg`, and `assets/silk-peach.jpg` (`SILK_DARK`, `SILK_DAY`, `SILK_RIBBON`, `SILK_PEACH`). **SILK_* assets must ship at ≥720px on the short side.** Fillers copy those pack silk bytes as-is — never downsample, never ship a slim silk variant. Leave those paths alone. Silk is the page stage. It is not the share image.
+`STAGE` / `ACCENT` behavior matches the root README: `color` is the photographic liquid-silk field; a named accent hue-shifts that silk and leaves tiles and chips neutral; `silver` does not force a hue. Silk files are `assets/silk-dark.jpg`, `assets/silk-day.jpg`, `assets/silk-ribbon.jpg`, and `assets/silk-peach.jpg` (`SILK_DARK`, `SILK_DAY`, `SILK_RIBBON`, `SILK_PEACH`). **SILK_* assets must ship at ≥1080px on the short side**, the same bytes baked into `layouts/billboard/page.canvas.tsx`. Fillers copy those pack silk bytes as-is — never downsample, never ship a slim silk variant. Leave those paths alone. Silk is the page stage. It is not the share image.
 
 ## Unfurl
 
