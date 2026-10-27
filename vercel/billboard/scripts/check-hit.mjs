@@ -244,9 +244,13 @@ async function main() {
   }
   if (template) {
     assert(html.includes("<title></title>"), "unfilled build keeps an empty title");
-    for (const token of ["__PAGE_TITLE__", "__GA_MEASUREMENT_ID__", "__META_PIXEL_ID__", "__DISPLAY_NAME__", "__AVATAR_DATA_URI__", "__LINKS_SHARE_HREF__"]) {
+    for (const token of ["__PAGE_TITLE__", "__GA_MEASUREMENT_ID__", "__META_PIXEL_ID__", "__DISPLAY_NAME__", "__AVATAR_DATA_URI__"]) {
       assert(js.split(token).length === 2, token + " stays a single placeholder");
     }
+    assert(
+      js.includes('const LINKS_SHARE_HREF = "https://x.ai/bot/iAAjk66qgHyqOys2TEC-K"'),
+      "corner chip defaults to the published .links Install URL",
+    );
   } else {
     const shipped = html.match(/<title>([^<]*)<\/title>/);
     const text = shipped ? shipped[1].trim() : "";
