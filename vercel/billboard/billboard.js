@@ -26,13 +26,8 @@ const GA_MEASUREMENT_ID = "__GA_MEASUREMENT_ID__";
 const META_PIXEL_ID = "__META_PIXEL_ID__";
 /** Corner-mark href. Leave the placeholder until the share URL exists. Not an install URL. */
 const LINKS_SHARE_HREF = "__LINKS_SHARE_HREF__";
-/** Product chrome. Not a fill token and not this user's avatar. */
+/** Product chrome. Not a fill token and not this user's avatar. Eyes are in this image. */
 const LINKS_MARK = "assets/links-mark.png";
-/** Static white pills on the sphere, as a fraction of the 36px face. They do not follow the pointer. */
-const MARK_EYES = [
-  { x: 0.1636, y: 0.2025, w: 0.0534, h: 0.1396, rot: 10 },
-  { x: 0.6942, y: 0.1901, w: 0.0493, h: 0.1314, rot: 3 },
-];
 
 const bots = [
   {
@@ -891,15 +886,7 @@ function miniLink(link) {
   return chip;
 }
 
-/** Rest placement on the sphere. No yaw, pitch, or pointer nudge. */
-function markEyeRest(eye) {
-  const radius = 18;
-  const x = Math.round(eye.x * radius * 1000) / 1000;
-  const y = Math.round(-eye.y * radius * 1000) / 1000;
-  return "translate(-50%, -50%) translate(" + x + "px, " + y + "px) rotate(" + eye.rot + "deg)";
-}
-
-/** Default corner control. Same chip glass as the social row. Always rendered. */
+/** Default corner control. Same chip glass as the social row. The face is the links-mark image alone. Always rendered. */
 function linksMark() {
   const face = el("div", "mark-face");
   const img = el("img");
@@ -908,16 +895,6 @@ function linksMark() {
   img.width = 36;
   img.height = 36;
   face.append(img);
-  for (let i = 0; i < MARK_EYES.length; i++) {
-    const eye = MARK_EYES[i];
-    const pill = el("div", "mark-eye");
-    pill.setAttribute("aria-hidden", "true");
-    pill.style.width = eye.w * 36 + "px";
-    pill.style.height = eye.h * 36 + "px";
-    pill.style.opacity = "1";
-    pill.style.transform = markEyeRest(eye);
-    face.append(pill);
-  }
   const chip = glassPane("chip", shareHref(LINKS_SHARE_HREF), "Links", face);
   chip.classList.add("product-mark");
   // Outside the social row. Outbound counts stay on tile and chip kinds only.
