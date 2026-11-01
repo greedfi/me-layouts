@@ -289,6 +289,8 @@ body {
   width: 100%;
   max-width: 100%;
   min-width: 0;
+  margin: 0 auto;
+  padding: 0;
 }
 
 .site-footer {
@@ -493,12 +495,12 @@ body {
 }
 
 .glass-chip .glass-content {
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  display: grid;
+  place-items: center;
   width: 44px;
   height: 44px;
   padding: 0;
+  line-height: 0;
 }
 
 .glass-filter {
@@ -568,7 +570,154 @@ body {
 
 .glyph {
   display: block;
-  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+  flex: 0 0 auto;
+  margin: 0;
+}
+
+/* Compact catalog. Same glass, ink, and type as the loud tiles. */
+.bots-loud,
+.bots-rest {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+}
+
+.bots-loud {
+  gap: 14px;
+}
+
+.bots-rest {
+  gap: 10px;
+}
+
+.bots-loud:empty,
+.bots-rest:empty {
+  display: none;
+}
+
+.tile-body-compact {
+  padding: 10px 12px;
+  gap: 0;
+}
+
+.tile-row-compact {
+  gap: 12px;
+}
+
+.icon-well-compact {
+  width: 40px;
+  height: 40px;
+  flex: 0 0 40px;
+  border-radius: 12px;
+}
+
+.tile-copy {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 2px;
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.tile-name.tile-name-compact {
+  font-size: 16px;
+  line-height: 1.15;
+  flex: 0 1 auto;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  overflow-wrap: normal;
+  word-break: normal;
+}
+
+.tile-desc.tile-desc-compact {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  overflow-wrap: normal;
+  word-break: normal;
+}
+
+.glass.bots-toggle,
+.glass.bots-filter {
+  border: 0;
+  background: transparent;
+  font: inherit;
+  color: inherit;
+  padding: 0;
+  appearance: none;
+  -webkit-appearance: none;
+  text-align: center;
+}
+
+.glass.bots-toggle[hidden] {
+  display: none !important;
+}
+
+.bots-toggle-label {
+  display: block;
+  width: 100%;
+  padding: 14px 18px;
+  text-align: center;
+  font-size: 15px;
+  line-height: 1.25;
+  font-weight: 600;
+  letter-spacing: -0.03em;
+}
+
+.bots-filter .glass-content {
+  width: 100%;
+}
+
+.bots-filter-input {
+  display: block;
+  width: 100%;
+  box-sizing: border-box;
+  border: 0;
+  margin: 0;
+  background: transparent;
+  color: var(--bb-glass-ink);
+  font-family: inherit;
+  font-size: 15px;
+  line-height: 1.25;
+  font-weight: 500;
+  letter-spacing: 0;
+  padding: 12px 16px;
+  outline: none;
+  text-shadow: var(--bb-ink-shadow);
+  text-align: left;
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+.bots-filter-input::placeholder {
+  color: var(--bb-glass-ink);
+  opacity: 0.55;
+}
+
+.bots-filter:focus-within {
+  outline: 2px solid var(--bb-focus);
+  outline-offset: 3px;
+}
+
+.bots-empty {
+  font-size: 12px;
+  line-height: 1.4;
+  font-weight: 500;
+  letter-spacing: 0;
+  text-align: center;
+  margin: 0;
+  color: var(--bb-ink);
+  text-shadow: var(--bb-soft-shadow);
+}
+
+.bots-empty[hidden] {
+  display: none !important;
 }
 
 @media (prefers-reduced-motion: reduce) {
