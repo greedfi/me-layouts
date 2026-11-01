@@ -2121,7 +2121,7 @@ function NewDot({ dark }: { dark: boolean }): JSX.Element {
         pointerEvents: "none",
         zIndex: 2,
         background: dark ? MILK_DARK : MILK_LIGHT,
-        boxShadow: dark ? SHINE_DARK : SHINE_LIGHT,
+        boxShadow: `${dark ? SHINE_DARK : SHINE_LIGHT}, 0 0 0 1px rgba(16, 16, 20, 0.55), 0 1px 2px rgba(16, 16, 20, 0.28)`,
       }}
     />
   );
@@ -2348,6 +2348,16 @@ export default function App(): JSX.Element {
   const needle = query.trim().toLowerCase();
   const filtered = gridBots.filter((bot) => needle.length === 0 || filled(bot.name).toLowerCase().includes(needle));
   const countText = `${shownBots.length} ${shownBots.length === 1 ? "bot" : "bots"} · ${shownLinks.length} ${shownLinks.length === 1 ? "link" : "links"}`;
+  // Preview and toast are position:fixed and the host lifts them off the page,
+  // so they do not inherit the page face. Same family, medium weight, and ink.
+  const overlayFace: CSSProperties = {
+    fontFamily: theme.font.family,
+    fontWeight: theme.weight.medium,
+    color: look.ink,
+    fontSynthesis: "none",
+    WebkitFontSmoothing: "antialiased",
+    MozOsxFontSmoothing: "grayscale",
+  };
   return (
     <div id={LAYOUT} style={pageStyle(look, desktop)}>
       <Stage />
@@ -2561,7 +2571,7 @@ export default function App(): JSX.Element {
         ) : null}
 
         {preview ? (
-          <div style={{ position: "fixed", left: preview.left, top: preview.top, width: preview.width, zIndex: 6, pointerEvents: "none" }}>
+          <div style={{ position: "fixed", left: preview.left, top: preview.top, width: preview.width, zIndex: 6, pointerEvents: "none", ...overlayFace }}>
             <GlassPane
               kind="tile"
               href=""
@@ -2572,13 +2582,13 @@ export default function App(): JSX.Element {
               onBlur={(): void => {}}
               contentStyle={{ padding: "12px 14px", boxSizing: "border-box" }}
             >
-              <p style={{ margin: 0, color: look.glassInk, fontFamily: theme.font.family, fontSize: 14, fontWeight: 500, lineHeight: 1.35, textShadow: dark ? SOFT_SHADOW_DARK : SOFT_SHADOW_LIGHT }}>{preview.desc}</p>
+              <p style={{ ...overlayFace, margin: 0, fontSize: 14, lineHeight: 1.35, textShadow: dark ? SOFT_SHADOW_DARK : SOFT_SHADOW_LIGHT }}>{preview.desc}</p>
             </GlassPane>
           </div>
         ) : null}
 
         {copied ? (
-          <div style={{ position: "fixed", left: "50%", bottom: "max(24px, env(safe-area-inset-bottom, 0px))", transform: "translateX(-50%)", zIndex: 7, pointerEvents: "none" }}>
+          <div style={{ position: "fixed", left: "50%", bottom: "max(24px, env(safe-area-inset-bottom, 0px))", transform: "translateX(-50%)", zIndex: 7, pointerEvents: "none", ...overlayFace }}>
             <GlassPane
               kind="chip"
               href=""
@@ -2590,7 +2600,7 @@ export default function App(): JSX.Element {
               frame={{ width: "auto", height: "auto", minWidth: 0, minHeight: 0, borderRadius: 999 }}
               contentStyle={{ padding: "10px 16px", width: "auto", height: "auto" }}
             >
-              <span style={{ color: look.glassInk, fontFamily: theme.font.family, fontSize: 14, fontWeight: 500, whiteSpace: "nowrap" }}>Copied</span>
+              <span style={{ ...overlayFace, fontSize: 14, whiteSpace: "nowrap" }}>Copied</span>
             </GlassPane>
           </div>
         ) : null}
