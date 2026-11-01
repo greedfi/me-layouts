@@ -1313,6 +1313,21 @@ function showCopied() {
   }, 1400);
 }
 
+function openShareHref(mark) {
+  const href = mark.getAttribute("href") || "";
+  if (href) window.open(href, "_blank", "noopener");
+}
+
+function copyPageUrl(mark) {
+  const nav = navigator;
+  const url = location.href;
+  if (!nav.clipboard || typeof nav.clipboard.writeText !== "function") {
+    openShareHref(mark);
+    return;
+  }
+  nav.clipboard.writeText(url).then(() => showCopied()).catch(() => openShareHref(mark));
+}
+
 function bindShare(mark) {
   mark.addEventListener("click", (event) => {
     const url = location.href;
@@ -1321,15 +1336,15 @@ function bindShare(mark) {
     const nav = navigator;
     if (coarse && typeof nav.share === "function") {
       quiet(event);
-      nav.share({ title: title, url: url }).catch(() => {});
+      nav.share({ title: title, url: url }).then(() => {}).catch((err) => {
+        if (err && err.name === "AbortError") return;
+        copyPageUrl(mark);
+      });
       return;
     }
     if (nav.clipboard && typeof nav.clipboard.writeText === "function") {
       quiet(event);
-      const href = mark.getAttribute("href") || "";
-      nav.clipboard.writeText(url).then(() => showCopied()).catch(() => {
-        if (href) window.open(href, "_blank", "noopener");
-      });
+      copyPageUrl(mark);
     }
   });
 }
@@ -1347,19 +1362,24 @@ function ensurePreview() {
 
 function placePreview(pop, anchor) {
   const box = anchor.getBoundingClientRect();
-  const width = Math.min(260, window.innerWidth - 24);
+  const margin = 12;
+  const width = Math.min(260, window.innerWidth - margin * 2);
   pop.style.width = width + "px";
   pop.hidden = false;
-  const popBox = pop.getBoundingClientRect();
+  const height = pop.getBoundingClientRect().height || pop.offsetHeight;
   let left = box.left + box.width / 2 - width / 2;
-  left = Math.max(12, Math.min(left, window.innerWidth - width - 12));
-  let top = box.top - popBox.height - 8;
-  if (top < 12) top = Math.min(window.innerHeight - popBox.height - 12, box.bottom + 8);
+  left = Math.max(margin, Math.min(left, window.innerWidth - width - margin));
+  let top = box.top - height - 8;
+  if (top < margin) top = box.bottom + 8;
+  if (top + height > window.innerHeight - margin) top = Math.max(margin, window.innerHeight - height - margin);
   pop.style.left = left + "px";
   pop.style.top = top + "px";
 }
 
+let previewClean = null;
+
 function bindPreview(root) {
+  if (previewClean) previewClean();
   const pop = ensurePreview();
   const copy = pop.querySelector(".bot-preview-copy");
   let timer = 0;
@@ -1412,6 +1432,7 @@ function bindPreview(root) {
     }, true);
     cell.addEventListener("contextmenu", (event) => {
       quiet(event);
+      if (event.button === 0) return;
       clearHold();
       sticky = true;
       show(cell);
@@ -1426,15 +1447,22 @@ function bindPreview(root) {
       if (!sticky) hide();
     });
   });
-  document.addEventListener("pointerdown", (event) => {
+  const onDoc = (event) => {
     if (pop.hidden) return;
     const target = event.target;
     if (target && target.closest && (target.closest(".bot-preview") || target.closest(".bot-cell"))) return;
     hide();
-  });
-  document.addEventListener("keydown", (event) => {
+  };
+  const onKey = (event) => {
     if (event.key === "Escape") hide();
-  });
+  };
+  document.addEventListener("pointerdown", onDoc);
+  document.addEventListener("keydown", onKey);
+  previewClean = () => {
+    document.removeEventListener("pointerdown", onDoc);
+    document.removeEventListener("keydown", onKey);
+    window.clearTimeout(timer);
+  };
 }
 
 function searchField() {

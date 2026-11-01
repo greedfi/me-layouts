@@ -318,7 +318,7 @@ const GREED_NAMES = [
   ["Business Bot", "Operating notes for the shop."],
 ];
 
-function greedBots(count) {
+function greedBots(count, avatar) {
   const now = Date.now();
   const bots = [];
   for (let i = 0; i < count; i++) {
@@ -326,7 +326,7 @@ function greedBots(count) {
     const bot = {
       name: pair[0],
       desc: pair[1],
-      src: svgIcon(String(i + 1).padStart(2, "0"), (i * 28) % 360),
+      src: avatar,
       href: "https://x.ai/bot/greedfi-" + i,
     };
     if (i === 1) bot.added = new Date(now - 2 * 86400000).toISOString();
@@ -355,7 +355,7 @@ function fillGreed(source, avatar, botCount) {
   next = replaceStringConst(next, "STAGE", "color");
   next = replaceStringConst(next, "PAGE_TITLE", "greedfi");
   next = replaceStringConst(next, "FEATURED_BOT", ".links");
-  next = replaceArray(next, "bots", greedBots(botCount));
+  next = replaceArray(next, "bots", greedBots(botCount, avatar));
   next = replaceArray(next, "links", greedLinks(botCount >= 35 ? 30 : 30));
   return next;
 }
@@ -464,6 +464,202 @@ async function shootPopover(browser, sessionId) {
   console.log("shot greedfi_popover_390.png");
 }
 
+function fillCustom(source, bots, links, featured) {
+  let next = source;
+  next = replaceStringConst(next, "DISPLAY_NAME", "Ada");
+  next = replaceStringConst(next, "HANDLE", "ada");
+  next = replaceStringConst(next, "BIO", "Bio");
+  next = replaceStringConst(next, "FOOTER", "Foot");
+  next = replaceStringConst(next, "STAGE", "color");
+  next = replaceStringConst(next, "AVATAR", svgIcon("A", 200));
+  next = replaceStringConst(next, "FEATURED_BOT", featured);
+  next = replaceArray(next, "bots", bots);
+  next = replaceArray(next, "links", links);
+  return next;
+}
+
+function plainBot(i, extra) {
+  return Object.assign(
+    {
+      name: "Bot " + i,
+      desc: "Description " + i,
+      src: svgIcon(String(i), i * 40),
+      href: "https://x.ai/bot/sweep-" + i,
+    },
+    extra || {},
+  );
+}
+
+async function openFilled(browser, sessionId, js) {
+  await writeFile(path.join(work, "billboard.js"), js);
+  await browser.send(
+    "Emulation.setDeviceMetricsOverride",
+    { width: 390, height: 844, deviceScaleFactor: 1, mobile: true },
+    sessionId,
+  );
+  await browser.send(
+    "Page.addScriptToEvaluateOnNewDocument",
+    { source: "window.__errs=[];window.addEventListener('error',function(e){window.__errs.push(String(e.message));});" },
+    sessionId,
+  );
+  const loaded = browser.once("Page.loadEventFired");
+  await browser.send("Page.navigate", { url: "http://127.0.0.1:" + port + "/?sweep=" + Date.now() }, sessionId);
+  await loaded;
+  await new Promise((resolve) => setTimeout(resolve, 350));
+}
+
+async function sweepFeatures(browser, sessionId, source) {
+  const bugs = [];
+  const note = (cond, message) => {
+    if (cond) console.log("ok", message);
+    else {
+      bugs.push(message);
+      console.error("FAIL", message);
+    }
+  };
+  await openFilled(browser, sessionId, source);
+  const blank = await browser.send(
+    "Runtime.evaluate",
+    {
+      expression:
+        "({tiles:document.querySelectorAll('.bots .glass-tile:not(.glass-icon)').length,grid:document.querySelectorAll('.bot-cell').length,search:!!document.querySelector('.bot-search'),counts:!!document.querySelector('.counts'),dots:document.querySelectorAll('.new-dot').length,errs:(window.__errs||[]).length})",
+      returnByValue: true,
+    },
+    sessionId,
+  );
+  const blankBody = blank.result.value;
+  note(blankBody.tiles === 2 && blankBody.grid === 0 && !blankBody.search && !blankBody.counts && blankBody.dots === 0 && blankBody.errs === 0, "unfilled placeholders render " + JSON.stringify(blankBody));
+
+  const five = [0, 1, 2, 3, 4].map((i) => plainBot(i));
+  await openFilled(browser, sessionId, fillCustom(source, five, [{ label: "X", href: "https://x.com/ada", display: "@ada" }], "0"));
+  const fiveBody = (
+    await browser.send(
+      "Runtime.evaluate",
+      {
+        expression:
+          "({tiles:[...document.querySelectorAll('.bots .tile-name')].map(n=>n.textContent),grid:[...document.querySelectorAll('.bot-cell')].map(n=>n.dataset.name),counts:document.querySelector('.counts')&&document.querySelector('.counts').textContent})",
+        returnByValue: true,
+      },
+      sessionId,
+    )
+  ).result.value;
+  note(fiveBody.tiles.length === 1 && fiveBody.tiles[0] === "Bot 0" && fiveBody.grid.length === 4 && !fiveBody.grid.includes("Bot 0"), "five bots pin Bot 0 once " + JSON.stringify(fiveBody));
+  note(fiveBody.counts === "5 bots · 1 link", "pluralization " + fiveBody.counts);
+
+  const dated = [
+    plainBot(0, { added: "not-a-date" }),
+    plainBot(1, { added: new Date(Date.now() + 86400000).toISOString() }),
+    plainBot(2, { added: new Date(Date.now() - 8 * 86400000).toISOString() }),
+    plainBot(3, { added: new Date(Date.now() - 86400000).toISOString() }),
+    plainBot(4, { added: "__BOT4_ADDED__" }),
+  ];
+  await openFilled(browser, sessionId, fillCustom(source, dated, [], "99"));
+  const dots = (
+    await browser.send(
+      "Runtime.evaluate",
+      { expression: "document.querySelectorAll('.new-dot').length", returnByValue: true },
+      sessionId,
+    )
+  ).result.value;
+  note(dots === 1, "only a date inside 7 days gets a dot (" + dots + ")");
+
+  const twelve = GREED_NAMES.map((pair, i) => ({
+    name: pair[0],
+    desc: pair[1],
+    src: svgIcon(String(i), i * 20),
+    href: "https://x.ai/bot/twelve-" + i,
+  }));
+  await openFilled(browser, sessionId, fillCustom(source, twelve, greedLinks(2), ".links"));
+  const searchProbe = await browser.send(
+    "Runtime.evaluate",
+    {
+      expression: `(() => {
+        const input = document.querySelector('.bot-search-input');
+        const style = getComputedStyle(input);
+        const featured = [...document.querySelectorAll('.bots .tile-name')].map((n) => n.textContent);
+        const before = document.querySelectorAll('.bot-cell:not([hidden])').length;
+        input.value = 'zzz';
+        input.dispatchEvent(new Event('input', { bubbles: true }));
+        const emptyEl = document.querySelector('.bot-empty');
+        const emptyShown = !!(emptyEl && !emptyEl.hidden);
+        const hidden = document.querySelectorAll('.bot-cell[hidden]').length;
+        input.value = '';
+        input.dispatchEvent(new Event('input', { bubbles: true }));
+        const restored = document.querySelectorAll('.bot-cell:not([hidden])').length;
+        const emptyAfterClear = !!(emptyEl && !emptyEl.hidden);
+        const gridNames = [...document.querySelectorAll('.bot-cell')].map((n) => n.dataset.name);
+        return {
+          appearance: style.appearance,
+          background: style.backgroundColor,
+          border: style.borderTopWidth,
+          shadow: style.boxShadow,
+          fontSize: style.fontSize,
+          featured,
+          before,
+          empty: emptyShown,
+          emptyAfterClear,
+          hidden,
+          restored,
+          duplicated: gridNames.includes('.links'),
+        };
+      })()`,
+      returnByValue: true,
+    },
+    sessionId,
+  );
+  const searchBody = searchProbe.result.value;
+  note(searchBody.appearance === "none" && searchBody.background === "rgba(0, 0, 0, 0)" && searchBody.border === "0px" && searchBody.fontSize === "16px", "search input is borderless " + JSON.stringify({ appearance: searchBody.appearance, background: searchBody.background, border: searchBody.border, fontSize: searchBody.fontSize }));
+  note(searchBody.featured.length === 1 && searchBody.featured[0] === ".links" && searchBody.before === 11 && !searchBody.duplicated, "twelve bots pin .links once");
+  note(searchBody.empty === true && searchBody.emptyAfterClear === false && searchBody.hidden === 11 && searchBody.restored === 11, "search empty state clears back to the grid " + JSON.stringify(searchBody));
+
+  const edge = await browser.send(
+    "Runtime.evaluate",
+    {
+      expression: `(() => {
+        const cell = document.querySelectorAll('.bot-cell')[document.querySelectorAll('.bot-cell').length - 1];
+        cell.scrollIntoView({ block: 'end' });
+        const box = cell.getBoundingClientRect();
+        return { x: box.x + box.width / 2, y: Math.min(box.y + 20, window.innerHeight - 8) };
+      })()`,
+      returnByValue: true,
+    },
+    sessionId,
+  );
+  const point = edge.result.value;
+  await browser.send("Input.dispatchMouseEvent", { type: "mousePressed", x: point.x, y: point.y, button: "left", clickCount: 1 }, sessionId);
+  await new Promise((resolve) => setTimeout(resolve, 650));
+  const placed = (
+    await browser.send(
+      "Runtime.evaluate",
+      {
+        expression:
+          "(() => { const pop = document.querySelector('.bot-preview'); if (!pop || pop.hidden) return { open: false }; const r = pop.getBoundingClientRect(); return { open: true, top: r.top, bottom: r.bottom, left: r.left, right: r.right, h: window.innerHeight, w: window.innerWidth }; })()",
+        returnByValue: true,
+      },
+      sessionId,
+    )
+  ).result.value;
+  note(
+    placed.open && placed.top >= 0 && placed.bottom <= placed.h + 1 && placed.left >= 0 && placed.right <= placed.w + 1,
+    "popover stays on screen " + JSON.stringify(placed),
+  );
+  const edgeShot = await browser.send("Page.captureScreenshot", { format: "png" }, sessionId);
+  await writeFile(path.join(artifacts, "sweep_popover_edge_390.png"), Buffer.from(edgeShot.data, "base64"));
+  await browser.send("Input.dispatchMouseEvent", { type: "mouseReleased", x: point.x, y: point.y, button: "left", clickCount: 1 }, sessionId);
+  await new Promise((resolve) => setTimeout(resolve, 200));
+  const after = (
+    await browser.send(
+      "Runtime.evaluate",
+      { expression: "({href:location.href,pop:!!document.querySelector('.bot-preview')&&!document.querySelector('.bot-preview').hidden})", returnByValue: true },
+      sessionId,
+    )
+  ).result.value;
+  note(String(after.href).includes("sweep") && after.pop === false, "long-press does not navigate and dismisses on release");
+
+  if (bugs.length) throw new Error(bugs.join("\n"));
+  console.log("sweep ok");
+}
+
 async function main() {
   const source = await readFile(path.join(root, "billboard.js"), "utf8");
   if (!source.includes('const LINKS_SHARE_HREF = "https://x.ai/bot/iAAjk66qgHyqOys2TEC-K"')) {
@@ -508,7 +704,7 @@ async function main() {
     await browser.send("Runtime.enable", {}, sessionId);
     await mkdir(artifacts, { recursive: true });
 
-    for (const botsN of BOT_COUNTS) {
+    if (process.env.BILLBOARD_GREED_ONLY !== "1") for (const botsN of BOT_COUNTS) {
       for (const linksN of SOCIAL_COUNTS) {
         const filled = fillSource(source, makeBots(botsN), makeLinks(linksN));
         await writeFile(path.join(work, "billboard.js"), filled);
@@ -583,26 +779,28 @@ async function main() {
     }
 
     // Narrow phone: 35 bots and 30 socials must not overflow at 320.
-    await browser.send(
-      "Emulation.setDeviceMetricsOverride",
-      { width: 320, height: 700, deviceScaleFactor: 1, mobile: true },
-      sessionId,
-    );
-    const loaded = browser.once("Page.loadEventFired");
-    await browser.send("Page.navigate", { url: `http://127.0.0.1:${port}/?narrow=1` }, sessionId);
-    await loaded;
-    await browser.send(
-      "Runtime.evaluate",
-      {
-        expression: `window.__expectBots = 35; window.__expectLinks = 30; new Promise((resolve) => setTimeout(resolve, 400))`,
-        awaitPromise: true,
-      },
-      sessionId,
-    );
-    const narrow = await browser.send("Runtime.evaluate", { expression: CHECKS, returnByValue: true }, sessionId);
-    const narrowFails = narrow.result.value || ["narrow checks did not return"];
-    if (narrowFails.length) failures.push("320: " + narrowFails.join("; "));
-    else console.log("ok 320");
+    if (process.env.BILLBOARD_GREED_ONLY !== "1") {
+      await browser.send(
+        "Emulation.setDeviceMetricsOverride",
+        { width: 320, height: 700, deviceScaleFactor: 1, mobile: true },
+        sessionId,
+      );
+      const loaded = browser.once("Page.loadEventFired");
+      await browser.send("Page.navigate", { url: `http://127.0.0.1:${port}/?narrow=1` }, sessionId);
+      await loaded;
+      await browser.send(
+        "Runtime.evaluate",
+        {
+          expression: `window.__expectBots = 35; window.__expectLinks = 30; new Promise((resolve) => setTimeout(resolve, 400))`,
+          awaitPromise: true,
+        },
+        sessionId,
+      );
+      const narrow = await browser.send("Runtime.evaluate", { expression: CHECKS, returnByValue: true }, sessionId);
+      const narrowFails = narrow.result.value || ["narrow checks did not return"];
+      if (narrowFails.length) failures.push("320: " + narrowFails.join("; "));
+      else console.log("ok 320");
+    }
 
     const avatar = await loadAvatar();
     await writeFile(path.join(work, "billboard.js"), fillGreed(source, avatar, 35));
@@ -612,6 +810,7 @@ async function main() {
     await shootPage(browser, sessionId, "greedfi_search_390.png", 390, 2, true);
     await writeFile(path.join(work, "billboard.js"), fillGreed(source, avatar, 35));
     await shootPopover(browser, sessionId);
+    await sweepFeatures(browser, sessionId, source);
   } finally {
     chrome.kill("SIGKILL");
     server.close();

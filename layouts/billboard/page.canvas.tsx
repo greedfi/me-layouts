@@ -1953,7 +1953,7 @@ function InstallTile({ bot }: { bot: Bot }): JSX.Element {
  * Default corner control. Same chip glass as the social row. The face is the
  * links-mark image alone. Always rendered.
  */
-function sharePage(event: { preventDefault: () => void; stopPropagation: () => void }): "shared" | "copied" | "link" {
+function sharePage(event: { preventDefault: () => void; stopPropagation: () => void }, onCopied: () => void): void {
   const url = typeof location !== "undefined" ? location.href : "";
   const title = typeof document !== "undefined" ? document.title : "";
   const coarse = mediaNow("(pointer: coarse)") || (typeof window !== "undefined" && window.innerWidth < 480);
@@ -1961,22 +1961,28 @@ function sharePage(event: { preventDefault: () => void; stopPropagation: () => v
     share?: (data: { title?: string; url?: string }) => Promise<void>;
     clipboard?: { writeText: (value: string) => Promise<void> };
   };
+  const openHref = (): void => {
+    const href = shareHref(LINKS_SHARE_HREF);
+    if (href && typeof window !== "undefined") window.open(href, "_blank", "noopener");
+  };
   if (coarse && typeof nav.share === "function") {
     event.preventDefault();
     event.stopPropagation();
-    nav.share({ title, url }).catch(() => {});
-    return "shared";
+    nav.share({ title, url }).catch((err: { name?: string }) => {
+      if (err && err.name === "AbortError") return;
+      if (nav.clipboard && typeof nav.clipboard.writeText === "function") {
+        nav.clipboard.writeText(url).then(() => onCopied()).catch(() => openHref());
+        return;
+      }
+      openHref();
+    });
+    return;
   }
   if (nav.clipboard && typeof nav.clipboard.writeText === "function") {
     event.preventDefault();
     event.stopPropagation();
-    nav.clipboard.writeText(url).catch(() => {
-      const href = shareHref(LINKS_SHARE_HREF);
-      if (href && typeof window !== "undefined") window.open(href, "_blank", "noopener");
-    });
-    return "copied";
+    nav.clipboard.writeText(url).then(() => onCopied()).catch(() => openHref());
   }
-  return "link";
 }
 
 function LinksMark({ desktop, onCopied }: { desktop: boolean; onCopied: () => void }): JSX.Element {
@@ -1988,8 +1994,7 @@ function LinksMark({ desktop, onCopied }: { desktop: boolean; onCopied: () => vo
       name="Links"
       haptic={false}
       onClick={(event): void => {
-        const result = sharePage(event);
-        if (result === "copied") onCopied();
+        sharePage(event, onCopied);
       }}
       focused={ring.focused}
       onFocus={ring.onFocus}
@@ -2146,10 +2151,14 @@ function BotIcon({ bot, desktop, onPreview }: { bot: Bot; desktop: boolean; onPr
     const node = glassRef.current;
     if (!desc || !node || typeof window === "undefined") return;
     const box = node.getBoundingClientRect();
-    const width = Math.min(260, window.innerWidth - 24);
+    const margin = 12;
+    const width = Math.min(260, window.innerWidth - margin * 2);
+    const height = 88;
     let left = box.left + box.width / 2 - width / 2;
-    left = Math.max(12, Math.min(left, window.innerWidth - width - 12));
-    const top = box.top > 96 ? box.top - 8 : box.bottom + 8;
+    left = Math.max(margin, Math.min(left, window.innerWidth - width - margin));
+    let top = box.top - height - 8;
+    if (top < margin) top = box.bottom + 8;
+    if (top + height > window.innerHeight - margin) top = Math.max(margin, window.innerHeight - height - margin);
     onPreview({ desc, left, top, width });
   };
   const clearHold = (): void => window.clearTimeout(holdTimer.current);
@@ -2211,6 +2220,7 @@ function BotIcon({ bot, desktop, onPreview }: { bot: Bot; desktop: boolean; onPr
       onContextMenu={(event): void => {
         event.preventDefault();
         event.stopPropagation();
+        if (event.button === 0) return;
         clearHold();
         sticky.current = true;
         showPreview();
@@ -2227,6 +2237,9 @@ function BotIcon({ bot, desktop, onPreview }: { bot: Bot; desktop: boolean; onPr
         boxSizing: "border-box",
         textDecoration: "none",
         color: look.ink,
+        WebkitTouchCallout: "none",
+        WebkitUserSelect: "none",
+        userSelect: "none",
         WebkitTapHighlightColor: CLEAR,
         outline: ring.focused ? `2px solid ${look.accentFocus}` : FOCUS_NONE,
         outlineOffset: 3,
@@ -2320,6 +2333,15 @@ export default function App(): JSX.Element {
   const [preview, setPreview] = useState<Preview | null>(null);
   const [copied, setCopied] = useState(false);
   const copiedTimer = useRef(0);
+  useEffect(() => {
+    if (typeof document === "undefined" || document.getElementById("bb-search-reset")) return;
+    const style = document.createElement("style");
+    style.id = "bb-search-reset";
+    style.textContent =
+      "input.bb-search{-webkit-appearance:none;appearance:none;background:transparent;border:0;box-shadow:none;outline:none;border-radius:0}" +
+      "input.bb-search::-webkit-search-decoration,input.bb-search::-webkit-search-cancel-button,input.bb-search::-webkit-search-results-button,input.bb-search::-webkit-search-results-decoration{-webkit-appearance:none;appearance:none;display:none}";
+    document.head.appendChild(style);
+  }, []);
   const pinAt = shownBots.length >= ICON_GRID_MIN ? featuredIndex(shownBots) : -1;
   const featured = pinAt >= 0 ? shownBots[pinAt] : null;
   const gridBots = featured ? shownBots.filter((_, index) => index !== pinAt) : shownBots;
@@ -2488,16 +2510,24 @@ export default function App(): JSX.Element {
               aria-label="Search bots"
               placeholder="Search"
               onChange={(event: { currentTarget: { value: string } }): void => setQuery(event.currentTarget.value)}
+              className="bb-search"
               style={{
+                WebkitAppearance: "none",
+                appearance: "none",
+                display: "block",
                 width: "100%",
                 minWidth: 0,
+                height: "100%",
                 border: 0,
+                borderRadius: 0,
                 margin: 0,
                 padding: 0,
                 background: "transparent",
+                backgroundColor: "transparent",
+                boxShadow: "none",
                 color: look.glassInk,
                 fontFamily: theme.font.family,
-                fontSize: 14,
+                fontSize: 16,
                 fontWeight: 500,
                 letterSpacing: "0",
                 outline: "none",
