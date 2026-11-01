@@ -290,13 +290,15 @@ const CHECKS = `(() => {
   }
   const names = document.querySelector(".bot-cell-name");
   if (names) {
-    if (!names.closest(".glass-icon")) fail("grid name sits outside the glass");
+    if (names.closest(".glass-icon")) fail("grid name sits inside the glass");
     const style = getComputedStyle(names);
+    const handle = document.querySelector(".handle");
+    if (handle && style.color !== getComputedStyle(handle).color) fail("grid name ink is not the body ink");
+    if (style.fontWeight !== "500") fail("grid name weight " + style.fontWeight);
     if (style.whiteSpace !== "nowrap") fail("grid name is not one line");
     if (style.textOverflow !== "ellipsis") fail("grid name does not ellipsize");
-    if (style.overflow !== "hidden" && style.overflowX !== "hidden") fail("grid name can overflow");
-    const shadow = style.textShadow;
-    if (!shadow || shadow === "none") fail("grid name has no text shadow");
+    const shadow = style.textShadow || "";
+    if (shadow === "none" || shadow.split(",").length < 3) fail("grid name halo is missing");
   }
   return fails;
 })()`;

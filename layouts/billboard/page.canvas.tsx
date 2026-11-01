@@ -2034,6 +2034,8 @@ function MiniLink({ link }: { link: Link }): JSX.Element {
 
 /** Four or fewer bots keep the full tile. Five or more share one icon grid. */
 const ICON_GRID_MIN = 5;
+/** Dark halo. It disappears on dark silk and lifts the body ink on a bright plate. */
+const NAME_HALO = "0 0 2px rgba(0,0,0,0.55), 0 0 6px rgba(0,0,0,0.45), 0 1px 10px rgba(0,0,0,0.35)";
 
 function BotIcon({ bot, desktop }: { bot: Bot; desktop: boolean }): JSX.Element {
   const look = useBillboardLook();
@@ -2075,10 +2077,13 @@ function BotIcon({ bot, desktop }: { bot: Bot; desktop: boolean }): JSX.Element 
         width: basis,
         maxWidth: basis,
         minWidth: 0,
-        display: "block",
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        gap: 6,
         boxSizing: "border-box",
         textDecoration: "none",
-        color: look.glassInk,
+        color: look.ink,
         WebkitTapHighlightColor: CLEAR,
         outline: ring.focused ? `2px solid ${look.accentFocus}` : FOCUS_NONE,
         outlineOffset: 3,
@@ -2096,53 +2101,54 @@ function BotIcon({ bot, desktop }: { bot: Bot; desktop: boolean }): JSX.Element 
         frame={{
           display: "block",
           width: "100%",
+          aspectRatio: "1",
           maxWidth: "100%",
           transform: reduced ? "none" : held ? "translateY(0) scale(0.97)" : lift ? "translateY(-3px) scale(1)" : "translateY(0) scale(1)",
           boxShadow: lift ? (look.dark ? ELEVATED_HOVER_DARK : ELEVATED_HOVER_LIGHT) : look.dark ? ELEVATED_DARK : ELEVATED_LIGHT,
           ...({ "--bb-avatar-scale": lift ? "1.04" : "1" } as CSSProperties),
         }}
         contentStyle={{
-          position: "relative",
+          position: "absolute",
+          inset: 0,
           width: "100%",
-          height: "auto",
+          height: "100%",
           display: "flex",
-          flexDirection: "column",
           alignItems: "center",
-          justifyContent: "flex-start",
-          gap: 6,
-          padding: "10px 6px 8px",
-          boxSizing: "border-box",
+          justifyContent: "center",
+          padding: 0,
         }}
       >
-        <div style={{ ...iconWell(64, 16, look), width: "100%", height: "auto", aspectRatio: "1", flex: "0 0 auto" }}>
+        <div style={{ ...iconWell(64, 16, look), width: "78%", height: "78%", flex: "0 0 auto" }}>
           <div style={{ width: "100%", height: "100%", transform: "scale(var(--bb-avatar-scale, 1))", transformOrigin: "center", transition: reduced ? "none" : "transform 150ms ease" }}>
             {icon.length > 0 ? <Image src={icon} alt="" width="100%" ratio={1} fit="cover" /> : null}
           </div>
         </div>
-        {name.length > 0 ? (
-          <p
-            style={{
-              fontFamily: look.theme.font.family,
-              color: look.glassInk,
-              fontSize: 12,
-              lineHeight: 1.2,
-              fontWeight: look.theme.weight.medium,
-              letterSpacing: "0",
-              textAlign: "center",
-              textShadow: "var(--bb-ink-shadow)",
-              margin: 0,
-              width: "100%",
-              maxWidth: "100%",
-              minWidth: 0,
-              whiteSpace: "nowrap",
-              overflow: "hidden",
-              textOverflow: "ellipsis",
-            }}
-          >
-            {name}
-          </p>
-        ) : null}
       </GlassPane>
+      {name.length > 0 ? (
+        <p
+          style={{
+            fontFamily: look.theme.font.family,
+            color: look.ink,
+            fontSize: 12,
+            lineHeight: 1.2,
+            fontWeight: 500,
+            letterSpacing: "0",
+            textAlign: "center",
+            textShadow: NAME_HALO,
+            margin: 0,
+            padding: "6px 2px 8px",
+            boxSizing: "border-box",
+            width: "100%",
+            maxWidth: "100%",
+            minWidth: 0,
+            whiteSpace: "nowrap",
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+          }}
+        >
+          {name}
+        </p>
+      ) : null}
     </a>
   );
 }
