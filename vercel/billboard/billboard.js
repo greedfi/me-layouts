@@ -5,6 +5,9 @@
  * Look tracks layouts/billboard/page.canvas.tsx. Fill this file the same way
  * the canvas pack is filled: the string initializers below appear once each.
  * Replace the whole bots array and the whole links array. Leave the rest.
+ * Three or fewer bots render as full tiles. Four or more keep the first three
+ * full and put the rest in a compact row behind Show all. Sixteen or more
+ * also shows a filter. The bot object keys do not change.
  * PAGE_TITLE is the browser tab and the unfurl title. Fill it with this user's username, or the display name.
  * OG_IMAGE_URL is an absolute https URL of this user's own avatar file, not a data URI and not a silk plate.
  * GA_MEASUREMENT_ID and META_PIXEL_ID stay placeholders unless the owner opts in later.
@@ -734,6 +737,25 @@ function buildStage(look) {
   return stage;
 }
 
+/**
+ * Move each path so its ink box is centered in the 24 viewBox.
+ * The X mark in particular sits high and left of that box; several others do too.
+ * Shifts under a twentieth of a unit are omitted.
+ */
+const GLYPH_SHIFT = {
+  x: [2.235, 1],
+  instagram: [0, 1.585],
+  linkedin: [0.5, 0],
+  tiktok: [1.2, 1.266],
+  discord: [-0.294, 0.8],
+  telegram: [-0.363, -0.298],
+  facebook: [-0.875, 0.205],
+  twitch: [1, -0.1],
+  threads: [3.1, 0.4],
+  bluesky: [0, 1.653],
+  reddit: [-0.957, 1.497],
+};
+
 function glyph(kind) {
   const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
   svg.setAttribute("aria-hidden", "true");
@@ -744,7 +766,15 @@ function glyph(kind) {
   const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
   path.setAttribute("fill", "currentColor");
   path.setAttribute("d", GLYPH[kind]);
-  svg.append(path);
+  const shift = GLYPH_SHIFT[kind];
+  if (shift) {
+    const g = document.createElementNS("http://www.w3.org/2000/svg", "g");
+    g.setAttribute("transform", "translate(" + shift[0] + " " + shift[1] + ")");
+    g.append(path);
+    svg.append(g);
+  } else {
+    svg.append(path);
+  }
   return svg;
 }
 
@@ -816,9 +846,14 @@ function paintGlass(anchor) {
 
 function watchGlass(anchor) {
   paintGlass(anchor);
-  if (typeof ResizeObserver !== "function") return;
+  if (anchor.dataset.watched === "1" || typeof ResizeObserver !== "function") return;
+  anchor.dataset.watched = "1";
   const observer = new ResizeObserver(() => paintGlass(anchor));
   observer.observe(anchor);
+  anchor._bbWatch = function () {
+    observer.disconnect();
+    observers = observers.filter((item) => item !== observer);
+  };
   observers.push(observer);
 }
 
@@ -826,16 +861,27 @@ function layer(className) {
   return el("div", "glass-layer " + className);
 }
 
-function glassPane(kind, href, name, content) {
+function glassPane(kind, href, name, content, opts) {
+  opts = opts || {};
   lensSeq += 1;
-  const anchor = el("a", "glass glass-" + kind);
+  const tag = opts.button ? "button" : opts.box ? "div" : "a";
+  const anchor = el(tag, "glass glass-" + kind);
   anchor.dataset.kind = kind;
   anchor.dataset.filterId = "billboard-lens-" + lensSeq;
-  const destination = filled(href);
-  if (destination.length > 0) {
-    anchor.href = destination;
-    anchor.target = "_blank";
-    anchor.rel = "noreferrer";
+  if (opts.extraClass) anchor.classList.add(opts.extraClass);
+  if (tag === "button") {
+    anchor.type = "button";
+    if (typeof opts.onClick === "function") anchor.addEventListener("click", opts.onClick);
+    if (opts.expanded === true || opts.expanded === false) {
+      anchor.setAttribute("aria-expanded", opts.expanded ? "true" : "false");
+    }
+  } else if (tag === "a") {
+    const destination = filled(href);
+    if (destination.length > 0) {
+      anchor.href = destination;
+      anchor.target = "_blank";
+      anchor.rel = "noreferrer";
+    }
   }
   if (name) {
     anchor.setAttribute("aria-label", name);
@@ -878,6 +924,144 @@ function installTile(bot) {
     body.append(copy);
   }
   return glassPane("tile", bot.href, "", body);
+}
+
+/** Loud tiles before a longer catalog compacts. Three or fewer stay this stack. */
+const BOT_LOUD = 3;
+/** A filter joins once scanning full tiles is the wrong tool. */
+const BOT_FILTER_AT = 16;
+let botsOpen = false;
+let botsQuery = "";
+
+function botShown(bot) {
+  return filled(bot.name).length > 0 || filled(bot.desc).length > 0 || filled(bot.href).length > 0 || filled(bot.src).length > 0;
+}
+
+function botQuery(bot, query) {
+  const hay = (filled(bot.name) + " " + filled(bot.desc)).toLowerCase();
+  return hay.includes(query);
+}
+
+function installCompact(bot) {
+  const name = filled(bot.name);
+  const desc = filled(bot.desc);
+  const icon = imageSrc(bot.src);
+  const body = el("div", "tile-body tile-body-compact");
+  const row = el("div", "tile-row tile-row-compact");
+  const well = el("div", "icon-well icon-well-compact");
+  if (icon.length > 0) {
+    const img = el("img");
+    img.src = icon;
+    img.alt = name.length > 0 ? name + " icon" : "Bot icon";
+    img.width = 40;
+    img.height = 40;
+    well.append(img);
+  }
+  const copy = el("div", "tile-copy");
+  if (name.length > 0) {
+    const title = el("p", "glass-copy tile-name tile-name-compact");
+    title.textContent = name;
+    copy.append(title);
+  }
+  if (desc.length > 0) {
+    const text = el("p", "glass-copy tile-desc tile-desc-compact");
+    text.textContent = desc;
+    text.title = desc;
+    copy.append(text);
+  }
+  row.append(well, copy);
+  body.append(row);
+  return glassPane("tile", bot.href, "", body);
+}
+
+function clearSlot(slot) {
+  slot.querySelectorAll(".glass").forEach((node) => {
+    if (typeof node._bbWatch === "function") node._bbWatch();
+  });
+  slot.replaceChildren();
+  slot.dataset.keys = "";
+}
+
+function fillSlot(slot, list, compact) {
+  const next = list.map((bot) => filled(bot.href) + "\0" + filled(bot.name)).join("\n");
+  if (slot.dataset.keys === next) return;
+  clearSlot(slot);
+  for (const bot of list) {
+    const node = compact ? installCompact(bot) : installTile(bot);
+    node.dataset.botKey = filled(bot.href) + "\0" + filled(bot.name);
+    slot.append(node);
+  }
+  slot.dataset.keys = next;
+  if (slot.isConnected) slot.querySelectorAll(".glass").forEach(watchGlass);
+}
+
+function paintBotSlots(shown, slots) {
+  const query = botsQuery.trim().toLowerCase();
+  if (query.length === 0) {
+    fillSlot(slots.loud, shown.slice(0, BOT_LOUD), false);
+    fillSlot(slots.rest, botsOpen ? shown.slice(BOT_LOUD) : [], true);
+    slots.empty.hidden = true;
+    slots.empty.textContent = "";
+  } else {
+    const matches = shown.filter((bot) => botQuery(bot, query));
+    fillSlot(slots.loud, [], false);
+    fillSlot(slots.rest, matches, true);
+    const none = matches.length === 0;
+    slots.empty.hidden = !none;
+    slots.empty.textContent = none ? "No matching bots" : "";
+  }
+  const open = botsOpen && query.length === 0;
+  const label = open ? "Show less" : "Show all " + shown.length;
+  slots.label.textContent = label;
+  slots.toggle.hidden = query.length > 0;
+  slots.toggle.setAttribute("aria-expanded", open ? "true" : "false");
+  slots.toggle.setAttribute("aria-label", label);
+  slots.toggle.title = label;
+}
+
+function mountBots(shown) {
+  if (shown.length <= BOT_LOUD) {
+    const section = el("section", "bots");
+    for (const bot of shown) section.append(installTile(bot));
+    return section;
+  }
+  const section = el("section", "bots");
+  const loud = el("div", "bots-loud");
+  section.append(loud);
+  if (shown.length >= BOT_FILTER_AT) {
+    const input = el("input", "bots-filter-input");
+    input.type = "text";
+    input.placeholder = "Filter bots";
+    input.setAttribute("aria-label", "Filter bots");
+    input.autocomplete = "off";
+    input.spellcheck = false;
+    input.value = botsQuery;
+    const field = glassPane("tile", "", "", input, { box: true, extraClass: "bots-filter" });
+    section.append(field);
+    input.addEventListener("input", () => {
+      botsQuery = input.value;
+      paintBotSlots(shown, slots);
+    });
+  }
+  const rest = el("div", "bots-rest");
+  const empty = el("p", "bots-empty");
+  empty.hidden = true;
+  section.append(rest, empty);
+  const label = el("span", "glass-copy bots-toggle-label");
+  const slots = { loud, rest, empty, label, toggle: null };
+  const toggle = glassPane("tile", "", "Show all " + shown.length, label, {
+    button: true,
+    extraClass: "bots-toggle",
+    expanded: false,
+    onClick: () => {
+      botsOpen = !botsOpen;
+      paintBotSlots(shown, slots);
+    },
+  });
+  slots.toggle = toggle;
+  section.append(toggle);
+  paintBotSlots(shown, slots);
+  return section;
 }
 
 function miniLink(link) {
@@ -1082,12 +1266,8 @@ function render() {
   }
   band.append(mast);
 
-  const shownBots = bots.filter((bot) => filled(bot.name).length > 0 || filled(bot.desc).length > 0 || filled(bot.href).length > 0 || filled(bot.src).length > 0);
-  if (shownBots.length > 0) {
-    const section = el("section", "bots");
-    for (const bot of shownBots) section.append(installTile(bot));
-    band.append(section);
-  }
+  const shownBots = bots.filter(botShown);
+  if (shownBots.length > 0) band.append(mountBots(shownBots));
 
   const shownLinks = links.filter((link) => filled(link.label).length > 0 || filled(link.display).length > 0 || filled(link.href).length > 0);
   if (shownLinks.length > 0) {

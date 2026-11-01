@@ -8,6 +8,9 @@ import { useGrokTheme, Image, useEffect, useRef, useState, type CSSProperties, t
  * not a title. LINKS_SHARE_HREF is its only fill token.
  * Tiles and chips are a liqui lens (displacement + frost + specular + tint).
  * Avatar and icons stay solid. The whole tile is the install link.
+ * Three or fewer bots stay that loud tile. Four or more keep the first three
+ * loud and list the rest as a compact glass row behind Show all. A long
+ * catalog also gets a filter. Same glass, type, and ink.
  * A trailing emoji run on the display name sits beside the hero at half size.
  * Long names, dense chips, and blank fields stay inside the column for any owner.
  * Type is one see-through face: silver at 0.82 on a dark device, near-solid
@@ -33,7 +36,8 @@ import { useGrokTheme, Image, useEffect, useRef, useState, type CSSProperties, t
  * centered, with silk in the side margins. A phone keeps the full-width
  * column and its safe-area inset. Viewport, host peek, and overscroll meet
  * the field. Theme white is not a frame around it.
- * Link chips are monochrome site icons. The handle stays on the accessible
+ * Link chips are monochrome site icons, each glyph centered in the round glass.
+ * The row centers as a group and wraps onto centered rows. The handle stays on the accessible
  * name, not as a word in the glass.
  * No hairline grid.
  * APPEARANCE is not a setup lock. The page follows the opener's device
@@ -508,6 +512,9 @@ function GlassPane({
   children,
   name,
   frame,
+  control,
+  onPress,
+  expanded,
 }: {
   kind: "tile" | "chip";
   href: string;
@@ -520,11 +527,15 @@ function GlassPane({
   name?: string;
   /** Anchor box. Icon chips pass a fixed square so the pill dial becomes a circle. */
   frame?: CSSProperties;
+  /** Link by default. A button toggles the catalog. A group holds the filter field. */
+  control?: "link" | "button" | "group";
+  onPress?: () => void;
+  expanded?: boolean;
 }): JSX.Element {
   const look = useBillboardLook();
   const dark = look.dark;
   const dial: Dial = kind === "tile" ? TILE_DIAL : CHIP_DIAL;
-  const ref = useRef<HTMLAnchorElement | null>(null);
+  const ref = useRef<HTMLElement | null>(null);
   const idRef = useRef("");
   if (idRef.current.length === 0) {
     lensSeq += 1;
@@ -572,15 +583,21 @@ function GlassPane({
     "--bb-ink-shadow": inkShadow,
   } as CSSProperties;
   const destination = href.trim();
+  const shell = control === "button" ? "button" : control === "group" ? "div" : "a";
+  const Shell = shell as "a";
+  const link = shell === "a" && destination.length > 0;
 
   return (
-    <a
+    <Shell
       ref={ref}
-      href={destination.length > 0 ? destination : undefined}
-      target={destination.length > 0 ? "_blank" : undefined}
-      rel={destination.length > 0 ? "noreferrer" : undefined}
+      href={link ? destination : undefined}
+      target={link ? "_blank" : undefined}
+      rel={link ? "noreferrer" : undefined}
+      type={control === "button" ? "button" : undefined}
       aria-label={name}
+      aria-expanded={control === "button" ? expanded : undefined}
       title={name}
+      onClick={control === "button" ? onPress : undefined}
       onFocus={onFocus}
       onBlur={(): void => {
         setPressed(false);
@@ -588,11 +605,11 @@ function GlassPane({
       }}
       onMouseEnter={(): void => setHovered(true)}
       onMouseLeave={(): void => setHovered(false)}
-      onPointerDown={(event: PointerEvent<HTMLAnchorElement>): void => {
+      onPointerDown={(event: PointerEvent<HTMLElement>): void => {
         setPressed(true);
         event.currentTarget.setPointerCapture(event.pointerId);
       }}
-      onPointerUp={(event: PointerEvent<HTMLAnchorElement>): void => {
+      onPointerUp={(event: PointerEvent<HTMLElement>): void => {
         setPressed(false);
         if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId);
       }}
@@ -608,6 +625,12 @@ function GlassPane({
         maxWidth: "100%",
         minWidth: 0,
         boxSizing: "border-box",
+        border: control === "link" || control === undefined ? undefined : 0,
+        background: control === "link" || control === undefined ? undefined : "transparent",
+        font: control === "link" || control === undefined ? undefined : "inherit",
+        padding: control === "link" || control === undefined ? undefined : 0,
+        appearance: control === "link" || control === undefined ? undefined : "none",
+        WebkitAppearance: control === "link" || control === undefined ? undefined : "none",
         borderRadius: radius,
         textDecoration: "none",
         color: look.glassInk,
@@ -683,7 +706,7 @@ function GlassPane({
       </div>
       <div aria-hidden style={{ ...LAYER, zIndex: 3, background: HOVER_WASH, opacity: hovered ? 1 : 0, transition: `opacity ${MOTION}` }} />
       <div style={{ position: "relative", zIndex: 4, boxSizing: "border-box", minWidth: 0, ...contentStyle }}>{children}</div>
-    </a>
+    </Shell>
   );
 }
 
@@ -1490,6 +1513,24 @@ const GLYPH: Record<LinkKind, string> = {
   site: "M12 2.2a9.8 9.8 0 1 0 0 19.6 9.8 9.8 0 0 0 0-19.6zm0 1.7c.9 0 2.2.9 3.1 3.1H8.9C9.8 4.8 11.1 3.9 12 3.9zm-4.7 4.7h9.4c.2.8.3 1.7.3 2.6s-.1 1.8-.3 2.6H7.3A11 11 0 0 1 7 11.2c0-.9.1-1.8.3-2.6zM12 20.1c-.9 0-2.2-.9-3.1-3.1h6.2c-.9 2.2-2.2 3.1-3.1 3.1zM4.1 12.8a8.1 8.1 0 0 1 0-3.2h2.5a13.4 13.4 0 0 0 0 3.2H4.1zm13.3 0a13.4 13.4 0 0 0 0-3.2h2.5a8.1 8.1 0 0 1 0 3.2h-2.5z",
 };
 
+/**
+ * Move each path so its ink box is centered in the 24 viewBox.
+ * The X mark sits high and left of that box. Shifts under a twentieth of a unit are omitted.
+ */
+const GLYPH_SHIFT: Partial<Record<LinkKind, readonly [number, number]>> = {
+  x: [2.235, 1],
+  instagram: [0, 1.585],
+  linkedin: [0.5, 0],
+  tiktok: [1.2, 1.266],
+  discord: [-0.294, 0.8],
+  telegram: [-0.363, -0.298],
+  facebook: [-0.875, 0.205],
+  twitch: [1, -0.1],
+  threads: [3.1, 0.4],
+  bluesky: [0, 1.653],
+  reddit: [-0.957, 1.497],
+};
+
 function linkHost(href: string): string {
   const trimmed = href.trim();
   if (trimmed.length === 0 || trimmed.startsWith("__")) return "";
@@ -1531,9 +1572,12 @@ function linkName(link: Link, kind: LinkKind): string {
 }
 
 function LinkGlyph({ kind }: { kind: LinkKind }): JSX.Element {
+  const shift = GLYPH_SHIFT[kind];
   return (
-    <svg aria-hidden width={20} height={20} viewBox="0 0 24 24" style={{ display: "block", flexShrink: 0 }}>
-      <path fill="currentColor" d={GLYPH[kind]} />
+    <svg aria-hidden width={20} height={20} viewBox="0 0 24 24" style={{ display: "block", width: 20, height: 20, flexShrink: 0, margin: 0 }}>
+      <g transform={shift ? `translate(${shift[0]} ${shift[1]})` : undefined}>
+        <path fill="currentColor" d={GLYPH[kind]} />
+      </g>
     </svg>
   );
 }
@@ -1703,16 +1747,246 @@ function MiniLink({ link }: { link: Link }): JSX.Element {
         justifyContent: "center",
       }}
       contentStyle={{
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
+        display: "grid",
+        placeItems: "center",
         width: CHIP_SIZE,
         height: CHIP_SIZE,
         boxSizing: "border-box",
         padding: 0,
+        lineHeight: 0,
         color: look.glassInk,
       }}
       children={<LinkGlyph kind={kind} />}
+    />
+  );
+}
+
+/** Loud tiles before a longer catalog compacts. Three or fewer stay this stack. */
+const BOT_LOUD = 3;
+/** A filter joins once scanning full tiles is the wrong tool. */
+const BOT_FILTER_AT = 16;
+
+function CompactTile({ bot }: { bot: Bot }): JSX.Element {
+  const look = useBillboardLook();
+  const theme = look.theme;
+  const ring = useFocusRing();
+  const name = filled(bot.name);
+  const desc = filled(bot.desc);
+  const icon = filled(bot.src);
+  return (
+    <GlassPane
+      kind="tile"
+      href={filled(bot.href)}
+      focused={ring.focused}
+      onFocus={ring.onFocus}
+      onBlur={ring.onBlur}
+      contentStyle={{
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "stretch",
+        gap: 0,
+        width: "100%",
+        maxWidth: "100%",
+        minWidth: 0,
+        boxSizing: "border-box",
+        padding: "10px 12px",
+      }}
+      children={
+        <div style={{ display: "flex", alignItems: "center", gap: 12, width: "100%", minWidth: 0 }}>
+          <div style={iconWell(40, 12, look)}>
+            {icon.length > 0 ? <Image src={icon} alt={name.length > 0 ? `${name} icon` : "Bot icon"} width={40} height={40} fit="cover" /> : null}
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", justifyContent: "center", gap: 2, minWidth: 0, flex: "1 1 auto" }}>
+            {name.length > 0 ? (
+              <p
+                style={{
+                  ...theme.font.heading1,
+                  ...FORE,
+                  fontFamily: theme.font.family,
+                  color: look.glassInk,
+                  fontSize: 16,
+                  lineHeight: 1.15,
+                  fontWeight: theme.weight.semibold,
+                  letterSpacing: "-0.03em",
+                  textTransform: "none",
+                  textShadow: "var(--bb-ink-shadow)",
+                  transition: `text-shadow ${MOTION}`,
+                  margin: 0,
+                  flex: "0 1 auto",
+                  minWidth: 0,
+                  maxWidth: "100%",
+                  whiteSpace: "nowrap",
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                }}
+              >
+                {name}
+              </p>
+            ) : null}
+            {desc.length > 0 ? (
+              <p
+                title={desc}
+                style={{
+                  ...theme.font.body1,
+                  ...FORE,
+                  fontFamily: theme.font.family,
+                  color: look.glassInk,
+                  fontSize: 14,
+                  lineHeight: 1.35,
+                  fontWeight: theme.weight.medium,
+                  letterSpacing: "0",
+                  textTransform: "none",
+                  textShadow: "var(--bb-ink-shadow)",
+                  transition: `text-shadow ${MOTION}`,
+                  margin: 0,
+                  maxWidth: "100%",
+                  minWidth: 0,
+                  whiteSpace: "nowrap",
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                }}
+              >
+                {desc}
+              </p>
+            ) : null}
+          </div>
+        </div>
+      }
+    />
+  );
+}
+
+function BotCatalog({ shown }: { shown: readonly Bot[] }): JSX.Element {
+  const look = useBillboardLook();
+  const theme = look.theme;
+  const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState("");
+  const ring = useFocusRing();
+  const q = query.trim().toLowerCase();
+  const lead = q.length === 0 ? shown.slice(0, Math.min(BOT_LOUD, shown.length)) : [];
+  const rest = q.length === 0 ? (open ? shown.slice(BOT_LOUD) : []) : shown.filter((bot) => `${filled(bot.name)} ${filled(bot.desc)}`.toLowerCase().includes(q));
+  const stack = { display: "flex", flexDirection: "column" as const, gap: 14, width: "100%", maxWidth: "100%", minWidth: 0 };
+  if (shown.length <= BOT_LOUD) {
+    return (
+      <section style={stack}>
+        {shown.map((bot, index) => (
+          <InstallTile key={`${bot.href}-${index}`} bot={bot} />
+        ))}
+      </section>
+    );
+  }
+  const label = open && q.length === 0 ? "Show less" : `Show all ${shown.length}`;
+  return (
+    <section style={stack}>
+      {lead.map((bot, index) => (
+        <InstallTile key={`${bot.href}-${index}`} bot={bot} />
+      ))}
+      {shown.length >= BOT_FILTER_AT ? (
+        <GlassPane
+          kind="tile"
+          href=""
+          control="group"
+          focused={ring.focused}
+          onFocus={ring.onFocus}
+          onBlur={ring.onBlur}
+          contentStyle={{ width: "100%", maxWidth: "100%", minWidth: 0, boxSizing: "border-box", padding: 0 }}
+          children={
+            <input
+              type="text"
+              value={query}
+              placeholder="Filter bots"
+              aria-label="Filter bots"
+              autoComplete="off"
+              spellCheck={false}
+              onChange={(event: { currentTarget: { value: string } }) => setQuery(event.currentTarget.value)}
+              style={{
+                display: "block",
+                width: "100%",
+                boxSizing: "border-box",
+                border: 0,
+                margin: 0,
+                background: "transparent",
+                color: look.glassInk,
+                fontFamily: theme.font.family,
+                fontSize: 15,
+                lineHeight: 1.25,
+                fontWeight: theme.weight.medium,
+                letterSpacing: "0",
+                padding: "12px 16px",
+                outline: "none",
+                textShadow: "var(--bb-ink-shadow)",
+                textAlign: "left",
+              }}
+            />
+          }
+        />
+      ) : null}
+      {rest.length > 0 ? (
+        <div style={{ display: "flex", flexDirection: "column", gap: 10, width: "100%", maxWidth: "100%", minWidth: 0 }}>
+          {rest.map((bot, index) => (
+            <CompactTile key={`${bot.href}-compact-${index}`} bot={bot} />
+          ))}
+        </div>
+      ) : null}
+      {q.length > 0 && rest.length === 0 ? (
+        <p
+          style={{
+            fontFamily: theme.font.family,
+            color: look.ink,
+            fontSize: 12,
+            lineHeight: 1.4,
+            fontWeight: theme.weight.medium,
+            letterSpacing: "0",
+            textAlign: "center",
+            textShadow: look.dark ? SOFT_SHADOW_DARK : SOFT_SHADOW_LIGHT,
+            margin: 0,
+          }}
+        >
+          No matching bots
+        </p>
+      ) : null}
+      {q.length === 0 ? (
+        <CatalogToggle label={label} expanded={open && q.length === 0} onPress={() => setOpen((value) => !value)} />
+      ) : null}
+    </section>
+  );
+}
+
+function CatalogToggle({ label, expanded, onPress }: { label: string; expanded: boolean; onPress: () => void }): JSX.Element {
+  const look = useBillboardLook();
+  const theme = look.theme;
+  const ring = useFocusRing();
+  return (
+    <GlassPane
+      kind="tile"
+      href=""
+      name={label}
+      control="button"
+      expanded={expanded}
+      onPress={onPress}
+      focused={ring.focused}
+      onFocus={ring.onFocus}
+      onBlur={ring.onBlur}
+      contentStyle={{ width: "100%", maxWidth: "100%", minWidth: 0, boxSizing: "border-box", padding: 0 }}
+      children={
+        <span
+          style={{
+            display: "block",
+            width: "100%",
+            padding: "14px 18px",
+            textAlign: "center",
+            fontFamily: theme.font.family,
+            color: look.glassInk,
+            fontSize: 15,
+            lineHeight: 1.25,
+            fontWeight: theme.weight.semibold,
+            letterSpacing: "-0.03em",
+            textShadow: "var(--bb-ink-shadow)",
+          }}
+        >
+          {label}
+        </span>
+      }
     />
   );
 }
@@ -1831,13 +2105,7 @@ export default function App(): JSX.Element {
           ) : null}
         </header>
 
-        {shownBots.length > 0 ? (
-          <section style={{ display: "flex", flexDirection: "column", gap: 14, width: "100%", maxWidth: "100%", minWidth: 0 }}>
-            {shownBots.map((bot, index) => (
-              <InstallTile key={`${bot.href}-${index}`} bot={bot} />
-            ))}
-          </section>
-        ) : null}
+        {shownBots.length > 0 ? <BotCatalog shown={shownBots} /> : null}
 
         {shownLinks.length > 0 ? (
           <nav
@@ -1851,6 +2119,8 @@ export default function App(): JSX.Element {
               width: "100%",
               maxWidth: "100%",
               minWidth: 0,
+              margin: "0 auto",
+              padding: 0,
             }}
           >
             {shownLinks.map((link, index) => (
