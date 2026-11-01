@@ -622,6 +622,7 @@ function GlassPane({
   haptic,
   held,
   onClick,
+  veil,
 }: {
   kind: "tile" | "chip";
   href: string;
@@ -641,6 +642,8 @@ function GlassPane({
   /** Parent cell is pressed (the name sits outside this surface). */
   held?: boolean;
   onClick?: (event: { preventDefault: () => void; stopPropagation: () => void }) => void;
+  /** Preview card only. Tile glass, with a 24px frost and a dark tint. */
+  veil?: boolean;
 }): JSX.Element {
   const look = useBillboardLook();
   const dark = look.dark;
@@ -785,19 +788,27 @@ function GlassPane({
       }}
     >
       <div aria-hidden style={{ ...LAYER, zIndex: 0, overflow: "hidden", borderRadius: radius, clipPath: clip }}>
-        <div style={{ ...LAYER, zIndex: 0, backdropFilter: frostFilter, WebkitBackdropFilter: frostFilter, background: CLEAR }} />
-        {shot ? (
+        <div
+          style={{
+            ...LAYER,
+            zIndex: 0,
+            backdropFilter: veil ? "blur(24px) saturate(1.48)" : frostFilter,
+            WebkitBackdropFilter: veil ? "blur(24px) saturate(1.48)" : frostFilter,
+            background: veil ? "rgba(10, 12, 16, 0.55)" : CLEAR,
+          }}
+        />
+        {shot && !veil ? (
           <div style={{ ...LAYER, zIndex: 0, backdropFilter: `url(#${filterId})`, WebkitBackdropFilter: `url(#${filterId})`, background: CLEAR }} />
         ) : null}
         <div
           style={{
             ...LAYER,
             zIndex: 1,
-            background: dark ? TINT_GRAD_DARK : TINT_GRAD_LIGHT,
-            opacity: tintOpacity,
+            background: veil ? "rgba(8, 10, 14, 0.94)" : dark ? TINT_GRAD_DARK : TINT_GRAD_LIGHT,
+            opacity: veil ? 1 : tintOpacity,
           }}
         />
-        <div style={{ ...LAYER, zIndex: 1, background: dark ? MILK_DARK : MILK_LIGHT }} />
+        <div style={{ ...LAYER, zIndex: 1, background: dark ? MILK_DARK : MILK_LIGHT, opacity: veil ? 0.22 : 1 }} />
         {shot ? (
           <div
             style={{
@@ -817,7 +828,7 @@ function GlassPane({
             background: SHEEN,
             mixBlendMode: "screen",
             filter: SHEEN_BLUR,
-            opacity: dark ? 0.36 : 0.14,
+            opacity: veil ? 0.12 : dark ? 0.36 : 0.14,
           }}
         />
         {shot ? (
@@ -2127,7 +2138,44 @@ function NewDot({ dark }: { dark: boolean }): JSX.Element {
   );
 }
 
-type Preview = { desc: string; left: number; top: number; width: number };
+type Preview = {
+  name: string;
+  desc: string;
+  left: number;
+  top: number;
+  width: number;
+  iconTop: number;
+  iconCenter: number;
+  cellBottom: number;
+};
+
+function hitsNames(top: number, left: number, width: number, height: number, names: DOMRect[]): DOMRect[] {
+  const bottom = top + height;
+  const right = left + width;
+  return names.filter((box) => left < box.right && right > box.left && top < box.bottom && bottom > box.top);
+}
+
+/** Above the icon, a small gap. Below the whole cell only when the viewport top has no room. */
+function placePopover(iconTop: number, iconCenter: number, cellBottom: number, width: number, height: number): { left: number; top: number } {
+  const margin = 12;
+  const gap = 8;
+  const viewW = typeof window === "undefined" ? width + margin * 2 : window.innerWidth;
+  const viewH = typeof window === "undefined" ? height + margin * 2 : window.innerHeight;
+  const scrollX = typeof window === "undefined" ? 0 : window.scrollX || 0;
+  const scrollY = typeof window === "undefined" ? 0 : window.scrollY || 0;
+  let left = iconCenter - width / 2;
+  left = Math.max(margin, Math.min(left, viewW - width - margin));
+  const names =
+    typeof document === "undefined" ? [] : [...document.querySelectorAll(".bot-cell-name, [data-bb-name]")].map((node) => node.getBoundingClientRect());
+  let top = iconTop - height - gap;
+  if (top < margin) {
+    top = cellBottom + gap;
+    const below = hitsNames(top, left, width, height, names);
+    if (below.length) top = Math.max(...below.map((box) => box.bottom)) + gap;
+    if (top + height > viewH - margin) top = Math.max(margin, viewH - height - margin);
+  }
+  return { left: Math.round(left + scrollX), top: Math.round(top + scrollY) };
+}
 
 function BotIcon({ bot, desktop, onPreview }: { bot: Bot; desktop: boolean; onPreview: (next: Preview | null) => void }): JSX.Element {
   const look = useBillboardLook();
@@ -2149,17 +2197,22 @@ function BotIcon({ bot, desktop, onPreview }: { bot: Bot; desktop: boolean; onPr
   const origin = useRef({ x: 0, y: 0 });
   const showPreview = (): void => {
     const node = glassRef.current;
-    if (!desc || !node || typeof window === "undefined") return;
+    if ((!desc && !name) || !node || typeof window === "undefined") return;
     const box = node.getBoundingClientRect();
-    const margin = 12;
-    const width = Math.min(260, window.innerWidth - margin * 2);
-    const height = 88;
-    let left = box.left + box.width / 2 - width / 2;
-    left = Math.max(margin, Math.min(left, window.innerWidth - width - margin));
-    let top = box.top - height - 8;
-    if (top < margin) top = box.bottom + 8;
-    if (top + height > window.innerHeight - margin) top = Math.max(margin, window.innerHeight - height - margin);
-    onPreview({ desc, left, top, width });
+    const cell = node.closest("a");
+    const cellBox = cell ? cell.getBoundingClientRect() : box;
+    const width = Math.min(260, window.innerWidth - 24);
+    const placed = placePopover(box.top, box.left + box.width / 2, cellBox.bottom, width, 88);
+    onPreview({
+      name,
+      desc,
+      width,
+      iconTop: box.top,
+      iconCenter: box.left + box.width / 2,
+      cellBottom: cellBox.bottom,
+      left: placed.left,
+      top: placed.top,
+    });
   };
   const clearHold = (): void => window.clearTimeout(holdTimer.current);
   return (
@@ -2285,6 +2338,7 @@ function BotIcon({ bot, desktop, onPreview }: { bot: Bot; desktop: boolean; onPr
       </div>
       {name.length > 0 ? (
         <p
+          data-bb-name=""
           style={{
             fontFamily: look.theme.font.family,
             color: look.ink,
@@ -2331,8 +2385,45 @@ export default function App(): JSX.Element {
   const dark = look.dark;
   const [query, setQuery] = useState("");
   const [preview, setPreview] = useState<Preview | null>(null);
+  const previewRef = useRef<HTMLDivElement | null>(null);
   const [copied, setCopied] = useState(false);
+  const [toastLift, setToastLift] = useState(112);
   const copiedTimer = useRef(0);
+  useEffect(() => {
+    if (!copied || typeof document === "undefined") return;
+    const root = document.getElementById(LAYOUT);
+    if (!root) return;
+    const nav = root.querySelector("nav");
+    const paras = [...root.querySelectorAll("p")];
+    const footer = paras.length > 0 ? paras[paras.length - 1] : null;
+    const height = 40;
+    const margin = 12;
+    let bottom = 112;
+    const blockers = [...root.querySelectorAll("[data-bb-name]"), nav, footer].filter((node): node is Element => !!node);
+    for (let guard = 0; guard < 6; guard++) {
+      const toastTop = window.innerHeight - bottom - height;
+      const toastBottom = window.innerHeight - bottom;
+      let next = bottom;
+      for (const node of blockers) {
+        const box = node.getBoundingClientRect();
+        if (box.height < 2 || box.bottom < 0 || box.top > window.innerHeight) continue;
+        if (toastTop < box.bottom && toastBottom > box.top) next = Math.max(next, Math.ceil(window.innerHeight - box.top + margin));
+      }
+      if (next === bottom) break;
+      bottom = next;
+    }
+    bottom = Math.min(bottom, Math.max(112, window.innerHeight - height - margin));
+    setToastLift(bottom);
+  }, [copied]);
+  useEffect(() => {
+    const node = previewRef.current;
+    if (!preview || !node) return;
+    const height = node.offsetHeight;
+    if (height < 2) return;
+    const placed = placePopover(preview.iconTop, preview.iconCenter, preview.cellBottom, preview.width, height);
+    if (Math.abs(placed.top - preview.top) <= 1 && Math.abs(placed.left - preview.left) <= 1) return;
+    setPreview({ ...preview, left: placed.left, top: placed.top });
+  }, [preview]);
   useEffect(() => {
     if (typeof document === "undefined" || document.getElementById("bb-search-reset")) return;
     const style = document.createElement("style");
@@ -2571,24 +2662,31 @@ export default function App(): JSX.Element {
         ) : null}
 
         {preview ? (
-          <div style={{ position: "fixed", left: preview.left, top: preview.top, width: preview.width, zIndex: 6, pointerEvents: "none", ...overlayFace }}>
+          <div ref={previewRef} style={{ position: "absolute", left: preview.left, top: preview.top, width: preview.width, maxWidth: "min(260px, calc(100vw - 24px))", zIndex: 6, pointerEvents: "none", ...overlayFace }}>
             <GlassPane
               kind="tile"
               href=""
               surface
+              veil
               haptic={false}
               focused={false}
               onFocus={(): void => {}}
               onBlur={(): void => {}}
+              frame={{ borderRadius: 20 }}
               contentStyle={{ padding: "12px 14px", boxSizing: "border-box" }}
             >
-              <p style={{ ...overlayFace, margin: 0, fontSize: 14, lineHeight: 1.35, textShadow: dark ? SOFT_SHADOW_DARK : SOFT_SHADOW_LIGHT }}>{preview.desc}</p>
+              {preview.name.length > 0 ? (
+                <p style={{ ...overlayFace, fontWeight: theme.weight.semibold, margin: 0, fontSize: 14, lineHeight: 1.35, whiteSpace: "normal", overflowWrap: "anywhere", textShadow: dark ? SOFT_SHADOW_DARK : SOFT_SHADOW_LIGHT }}>{preview.name}</p>
+              ) : null}
+              {preview.desc.length > 0 ? (
+                <p style={{ ...overlayFace, margin: preview.name.length > 0 ? "4px 0 0" : 0, fontSize: 14, lineHeight: 1.35, whiteSpace: "normal", overflowWrap: "anywhere", textShadow: dark ? SOFT_SHADOW_DARK : SOFT_SHADOW_LIGHT }}>{preview.desc}</p>
+              ) : null}
             </GlassPane>
           </div>
         ) : null}
 
         {copied ? (
-          <div style={{ position: "fixed", left: "50%", bottom: "max(24px, env(safe-area-inset-bottom, 0px))", transform: "translateX(-50%)", zIndex: 7, pointerEvents: "none", ...overlayFace }}>
+          <div style={{ position: "fixed", left: "50%", bottom: `max(${toastLift}px, calc(env(safe-area-inset-bottom, 0px) + 96px))`, transform: "translateX(-50%)", zIndex: 7, pointerEvents: "none", ...overlayFace }}>
             <GlassPane
               kind="chip"
               href=""

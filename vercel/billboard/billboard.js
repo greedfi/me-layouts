@@ -832,9 +832,14 @@ function paintGlass(anchor) {
   if (prev) prev.remove();
   layers.append(buildFilter(anchor.dataset.filterId, w, h, images.map, dial));
   const displace = anchor.querySelector(".glass-displace");
-  const ref = "url(#" + anchor.dataset.filterId + ")";
-  displace.style.backdropFilter = ref;
-  displace.style.webkitBackdropFilter = ref;
+  if (anchor.classList.contains("bot-preview")) {
+    displace.style.backdropFilter = "blur(24px) saturate(1.48)";
+    displace.style.webkitBackdropFilter = "blur(24px) saturate(1.48)";
+  } else {
+    const ref = "url(#" + anchor.dataset.filterId + ")";
+    displace.style.backdropFilter = ref;
+    displace.style.webkitBackdropFilter = ref;
+  }
 }
 
 function watchGlass(anchor) {
@@ -1296,6 +1301,32 @@ function quiet(event) {
   event.stopPropagation();
 }
 
+function placeToast(toast) {
+  toast.hidden = false;
+  toast.style.position = "fixed";
+  toast.style.top = "auto";
+  toast.style.left = "50%";
+  toast.style.transform = "translateX(-50%)";
+  const height = toast.getBoundingClientRect().height || 40;
+  const margin = 12;
+  let bottom = 112;
+  const blockers = [...document.querySelectorAll(".bot-cell-name, nav.links, .site-footer")];
+  for (let guard = 0; guard < 6; guard++) {
+    const toastTop = window.innerHeight - bottom - height;
+    const toastBottom = window.innerHeight - bottom;
+    let next = bottom;
+    for (const node of blockers) {
+      const box = node.getBoundingClientRect();
+      if (box.height < 2 || box.bottom < 0 || box.top > window.innerHeight) continue;
+      if (toastTop < box.bottom && toastBottom > box.top) next = Math.max(next, Math.ceil(window.innerHeight - box.top + margin));
+    }
+    if (next === bottom) break;
+    bottom = next;
+  }
+  bottom = Math.min(bottom, Math.max(112, window.innerHeight - height - margin));
+  toast.style.bottom = "max(" + bottom + "px, calc(env(safe-area-inset-bottom, 0px) + 96px))";
+}
+
 function showCopied() {
   let toast = document.querySelector(".copied-toast");
   if (!toast) {
@@ -1306,7 +1337,7 @@ function showCopied() {
     document.body.append(toast);
     watchGlass(toast);
   }
-  toast.hidden = false;
+  placeToast(toast);
   window.clearTimeout(toast._bbTimer);
   toast._bbTimer = window.setTimeout(() => {
     toast.hidden = true;
@@ -1352,7 +1383,8 @@ function bindShare(mark) {
 function ensurePreview() {
   let pop = document.querySelector(".bot-preview");
   if (pop) return pop;
-  const copy = el("p", "bot-preview-copy");
+  const copy = el("div", "bot-preview-copy");
+  copy.append(el("p", "bot-preview-name"), el("p", "bot-preview-desc"));
   pop = glassPane("tile", "", "", copy, { linked: false, haptic: false, className: "bot-preview" });
   pop.hidden = true;
   document.body.append(pop);
@@ -1360,20 +1392,41 @@ function ensurePreview() {
   return pop;
 }
 
+function nameBoxes() {
+  return [...document.querySelectorAll(".bot-cell-name")].map((node) => node.getBoundingClientRect());
+}
+
+function hitsNames(top, left, width, height, names) {
+  const bottom = top + height;
+  const right = left + width;
+  return names.filter((box) => left < box.right && right > box.left && top < box.bottom && bottom > box.top);
+}
+
+/** Above the icon, a small gap. Below the whole cell only when the viewport top has no room. */
 function placePreview(pop, anchor) {
-  const box = anchor.getBoundingClientRect();
+  const icon = anchor.getBoundingClientRect();
+  const cell = anchor.closest(".bot-cell");
+  const cellBox = cell ? cell.getBoundingClientRect() : icon;
   const margin = 12;
+  const gap = 8;
+  const scrollX = window.scrollX || document.documentElement.scrollLeft || 0;
+  const scrollY = window.scrollY || document.documentElement.scrollTop || 0;
   const width = Math.min(260, window.innerWidth - margin * 2);
   pop.style.width = width + "px";
   pop.hidden = false;
   const height = pop.getBoundingClientRect().height || pop.offsetHeight;
-  let left = box.left + box.width / 2 - width / 2;
+  let left = icon.left + icon.width / 2 - width / 2;
   left = Math.max(margin, Math.min(left, window.innerWidth - width - margin));
-  let top = box.top - height - 8;
-  if (top < margin) top = box.bottom + 8;
-  if (top + height > window.innerHeight - margin) top = Math.max(margin, window.innerHeight - height - margin);
-  pop.style.left = left + "px";
-  pop.style.top = top + "px";
+  let top = icon.top - height - gap;
+  if (top < margin) {
+    const names = nameBoxes();
+    top = cellBox.bottom + gap;
+    const below = hitsNames(top, left, width, height, names);
+    if (below.length) top = Math.max(...below.map((box) => box.bottom)) + gap;
+    if (top + height > window.innerHeight - margin) top = Math.max(margin, window.innerHeight - height - margin);
+  }
+  pop.style.left = left + scrollX + "px";
+  pop.style.top = top + scrollY + "px";
 }
 
 let previewClean = null;
@@ -1386,13 +1439,26 @@ function bindPreview(root) {
   let sticky = false;
   const hide = () => {
     pop.hidden = true;
-    if (copy) copy.textContent = "";
+    const nameEl = pop.querySelector(".bot-preview-name");
+    const descEl = pop.querySelector(".bot-preview-desc");
+    if (nameEl) nameEl.textContent = "";
+    if (descEl) descEl.textContent = "";
     sticky = false;
   };
   const show = (cell) => {
     const desc = cell.dataset.desc || "";
-    if (!desc || !copy) return;
-    copy.textContent = desc;
+    const name = cell.dataset.name || "";
+    if ((!desc && !name) || !copy) return;
+    const nameEl = pop.querySelector(".bot-preview-name");
+    const descEl = pop.querySelector(".bot-preview-desc");
+    if (nameEl) {
+      nameEl.textContent = name;
+      nameEl.hidden = name.length === 0;
+    }
+    if (descEl) {
+      descEl.textContent = desc;
+      descEl.hidden = desc.length === 0;
+    }
     placePreview(pop, cell.querySelector(".glass-icon") || cell);
   };
   root.querySelectorAll(".bot-cell").forEach((cell) => {

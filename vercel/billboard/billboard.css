@@ -795,10 +795,15 @@ body {
 }
 
 .bot-preview {
-  position: fixed;
+  position: absolute;
   z-index: 6;
   width: min(260px, calc(100vw - 24px));
+  max-width: min(260px, calc(100vw - 24px));
   pointer-events: none;
+  /* Tile radius. A short line used to read as a pill; the card keeps 20. */
+  --glass-blur: 24px;
+  --glass-radius: 20px;
+  border-radius: 20px;
   /* Appended to body, outside .page, so the page face does not inherit. */
   color: var(--bb-ink);
   font-family: "Inter", ui-sans-serif, system-ui, "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif;
@@ -808,12 +813,37 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
+.bot-preview[hidden] {
+  display: none;
+}
+
+/* Same tile glass. The frost is thick enough that a name row behind the card does not read. */
+.bot-preview .glass-frost {
+  background: rgba(10, 12, 16, 0.55);
+  backdrop-filter: blur(24px) saturate(1.48);
+  -webkit-backdrop-filter: blur(24px) saturate(1.48);
+}
+
+.bot-preview .glass-tint {
+  background: rgba(8, 10, 14, 0.94);
+  opacity: 1;
+}
+
+.bot-preview .glass-milk {
+  opacity: 0.22;
+}
+
+.bot-preview .glass-sheen {
+  opacity: 0.12;
+}
+
 .bot-preview .glass-content {
   padding: 12px 14px;
 }
 
 .bot-preview-copy {
   margin: 0;
+  min-width: 0;
   color: var(--bb-ink);
   font-family: "Inter", ui-sans-serif, system-ui, "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif;
   font-size: 14px;
@@ -823,10 +853,37 @@ body {
   text-shadow: var(--bb-ink-shadow);
 }
 
+.bot-preview-name,
+.bot-preview-desc {
+  margin: 0;
+  color: var(--bb-ink);
+  font-family: inherit;
+  font-size: 14px;
+  line-height: 1.35;
+  font-synthesis: none;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.bot-preview-name {
+  font-weight: 600;
+}
+
+.bot-preview-desc {
+  margin-top: 4px;
+  font-weight: 500;
+}
+
+.bot-preview-desc[hidden],
+.bot-preview-name[hidden] {
+  display: none;
+}
+
 .copied-toast {
   position: fixed;
   left: 50%;
-  bottom: max(24px, env(safe-area-inset-bottom, 0px));
+  /* Clears the social row and the footer line, including the home-indicator inset. */
+  bottom: max(112px, calc(env(safe-area-inset-bottom, 0px) + 96px));
   transform: translateX(-50%);
   z-index: 7;
   width: auto;
@@ -837,6 +894,10 @@ body {
   font-synthesis: none;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+.copied-toast[hidden] {
+  display: none;
 }
 
 .glass.glass-toast {
