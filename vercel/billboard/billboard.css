@@ -796,14 +796,15 @@ body {
 
 .bot-preview {
   position: absolute;
-  z-index: 6;
+  z-index: 8;
   width: min(260px, calc(100vw - 24px));
-  max-width: min(260px, calc(100vw - 24px));
+  max-width: calc(100vw - 24px);
   pointer-events: none;
   /* Tile radius. A short line used to read as a pill; the card keeps 20. */
   --glass-blur: 24px;
   --glass-radius: 20px;
   border-radius: 20px;
+  background: #12141a;
   /* Appended to body, outside .page, so the page face does not inherit. */
   color: var(--bb-ink);
   font-family: "Inter", ui-sans-serif, system-ui, "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif;
@@ -817,24 +818,25 @@ body {
   display: none;
 }
 
-/* Same tile glass. The frost is thick enough that a name row behind the card does not read. */
+/* Opaque frost. A name under the card is hidden whole; nothing reads through the face. */
 .bot-preview .glass-frost {
-  background: rgba(10, 12, 16, 0.55);
-  backdrop-filter: blur(24px) saturate(1.48);
-  -webkit-backdrop-filter: blur(24px) saturate(1.48);
+  background: rgba(16, 18, 22, 0.98);
+  backdrop-filter: blur(24px) saturate(1.2);
+  -webkit-backdrop-filter: blur(24px) saturate(1.2);
+}
+
+.bot-preview .glass-displace {
+  opacity: 0;
 }
 
 .bot-preview .glass-tint {
-  background: rgba(8, 10, 14, 0.94);
+  background: rgba(14, 16, 20, 0.98);
   opacity: 1;
 }
 
-.bot-preview .glass-milk {
-  opacity: 0.22;
-}
-
+.bot-preview .glass-milk,
 .bot-preview .glass-sheen {
-  opacity: 0.12;
+  opacity: 0;
 }
 
 .bot-preview .glass-content {
@@ -882,47 +884,36 @@ body {
 .copied-toast {
   position: fixed;
   left: 50%;
-  /* Clears the social row and the footer line, including the home-indicator inset. */
-  bottom: max(112px, calc(env(safe-area-inset-bottom, 0px) + 96px));
+  bottom: calc(16px + env(safe-area-inset-bottom, 0px));
   transform: translateX(-50%);
-  z-index: 7;
+  z-index: 9;
   width: auto;
-  pointer-events: none;
-  color: var(--bb-ink);
-  font-family: "Inter", ui-sans-serif, system-ui, "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif;
-  font-weight: 500;
-  font-synthesis: none;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-}
-
-.copied-toast[hidden] {
-  display: none;
-}
-
-.glass.glass-toast {
-  width: auto;
-  height: auto;
-  min-width: 0;
-  min-height: 0;
-  border-radius: 999px;
-}
-
-.glass-toast .glass-content {
-  width: auto;
-  height: auto;
+  margin: 0;
   padding: 10px 16px;
-}
-
-.copied-label {
-  color: var(--bb-ink);
+  border-radius: 999px;
+  pointer-events: none;
+  background: #111111;
+  color: #ffffff;
   font-family: "Inter", ui-sans-serif, system-ui, "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif;
   font-size: 14px;
   font-weight: 500;
   font-synthesis: none;
   line-height: 1.2;
-  text-shadow: var(--bb-ink-shadow);
   white-space: nowrap;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  box-shadow: none;
+}
+
+:root[data-appearance="day"] .copied-toast {
+  background: #ffffff;
+  color: #111111;
+}
+
+.copied-toast[hidden] {
+  display: none;
 }
 
 .bot-cell:active .glass-icon {

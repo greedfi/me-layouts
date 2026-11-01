@@ -304,7 +304,7 @@ const CHECKS = `(() => {
 })()`;
 
 const GREED_NAMES = [
-  [".links", "Downloadable .bot link-tree — cleaner than Linktree."],
+  [".links", "Downloadable .bot link-tree."],
   [".cord", "A cord of bots, one install."],
   [".promo", "Launch films for Grok Bot products."],
   [".mail", "Inbox setup kit for Grok Bots."],

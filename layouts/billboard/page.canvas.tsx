@@ -794,7 +794,7 @@ function GlassPane({
             zIndex: 0,
             backdropFilter: veil ? "blur(24px) saturate(1.48)" : frostFilter,
             WebkitBackdropFilter: veil ? "blur(24px) saturate(1.48)" : frostFilter,
-            background: veil ? "rgba(10, 12, 16, 0.55)" : CLEAR,
+            background: veil ? "rgba(16, 18, 22, 0.98)" : CLEAR,
           }}
         />
         {shot && !veil ? (
@@ -804,11 +804,11 @@ function GlassPane({
           style={{
             ...LAYER,
             zIndex: 1,
-            background: veil ? "rgba(8, 10, 14, 0.94)" : dark ? TINT_GRAD_DARK : TINT_GRAD_LIGHT,
+            background: veil ? "rgba(14, 16, 20, 0.98)" : dark ? TINT_GRAD_DARK : TINT_GRAD_LIGHT,
             opacity: veil ? 1 : tintOpacity,
           }}
         />
-        <div style={{ ...LAYER, zIndex: 1, background: dark ? MILK_DARK : MILK_LIGHT, opacity: veil ? 0.22 : 1 }} />
+        <div style={{ ...LAYER, zIndex: 1, background: dark ? MILK_DARK : MILK_LIGHT, opacity: veil ? 0 : 1 }} />
         {shot ? (
           <div
             style={{
@@ -828,7 +828,7 @@ function GlassPane({
             background: SHEEN,
             mixBlendMode: "screen",
             filter: SHEEN_BLUR,
-            opacity: veil ? 0.12 : dark ? 0.36 : 0.14,
+            opacity: veil ? 0 : dark ? 0.36 : 0.14,
           }}
         />
         {shot ? (
@@ -2155,8 +2155,8 @@ function hitsNames(top: number, left: number, width: number, height: number, nam
   return names.filter((box) => left < box.right && right > box.left && top < box.bottom && bottom > box.top);
 }
 
-/** Above the icon, a small gap. Below the whole cell only when the viewport top has no room. */
-function placePopover(iconTop: number, iconCenter: number, cellBottom: number, width: number, height: number): { left: number; top: number } {
+/** Bottom edge sits 8px above the held icon. A name the card touches is covered whole, not sliced. */
+function placePopover(iconTop: number, iconCenter: number, cellBottom: number, width: number, height: number): { left: number; top: number; width: number } {
   const margin = 12;
   const gap = 8;
   const viewW = typeof window === "undefined" ? width + margin * 2 : window.innerWidth;
@@ -2174,7 +2174,25 @@ function placePopover(iconTop: number, iconCenter: number, cellBottom: number, w
     if (below.length) top = Math.max(...below.map((box) => box.bottom)) + gap;
     if (top + height > viewH - margin) top = Math.max(margin, viewH - height - margin);
   }
-  return { left: Math.round(left + scrollX), top: Math.round(top + scrollY) };
+  for (let pass = 0; pass < 4; pass++) {
+    let nextLeft = left;
+    let nextRight = left + width;
+    let grew = false;
+    for (const box of names) {
+      const hit = nextLeft < box.right && nextRight > box.left && top < box.bottom && top + height > box.top;
+      if (!hit) continue;
+      if (box.left >= nextLeft - 0.5 && box.right <= nextRight + 0.5) continue;
+      nextLeft = Math.min(nextLeft, box.left);
+      nextRight = Math.max(nextRight, box.right);
+      grew = true;
+    }
+    if (!grew) break;
+    nextLeft = Math.max(margin, nextLeft);
+    nextRight = Math.min(viewW - margin, nextRight);
+    left = nextLeft;
+    width = Math.max(1, nextRight - nextLeft);
+  }
+  return { left: Math.round(left + scrollX), top: Math.round(top + scrollY), width: Math.round(width) };
 }
 
 function BotIcon({ bot, desktop, onPreview }: { bot: Bot; desktop: boolean; onPreview: (next: Preview | null) => void }): JSX.Element {
@@ -2206,7 +2224,7 @@ function BotIcon({ bot, desktop, onPreview }: { bot: Bot; desktop: boolean; onPr
     onPreview({
       name,
       desc,
-      width,
+      width: placed.width,
       iconTop: box.top,
       iconCenter: box.left + box.width / 2,
       cellBottom: cellBox.bottom,
@@ -2387,42 +2405,15 @@ export default function App(): JSX.Element {
   const [preview, setPreview] = useState<Preview | null>(null);
   const previewRef = useRef<HTMLDivElement | null>(null);
   const [copied, setCopied] = useState(false);
-  const [toastLift, setToastLift] = useState(112);
   const copiedTimer = useRef(0);
-  useEffect(() => {
-    if (!copied || typeof document === "undefined") return;
-    const root = document.getElementById(LAYOUT);
-    if (!root) return;
-    const nav = root.querySelector("nav");
-    const paras = [...root.querySelectorAll("p")];
-    const footer = paras.length > 0 ? paras[paras.length - 1] : null;
-    const height = 40;
-    const margin = 12;
-    let bottom = 112;
-    const blockers = [...root.querySelectorAll("[data-bb-name]"), nav, footer].filter((node): node is Element => !!node);
-    for (let guard = 0; guard < 6; guard++) {
-      const toastTop = window.innerHeight - bottom - height;
-      const toastBottom = window.innerHeight - bottom;
-      let next = bottom;
-      for (const node of blockers) {
-        const box = node.getBoundingClientRect();
-        if (box.height < 2 || box.bottom < 0 || box.top > window.innerHeight) continue;
-        if (toastTop < box.bottom && toastBottom > box.top) next = Math.max(next, Math.ceil(window.innerHeight - box.top + margin));
-      }
-      if (next === bottom) break;
-      bottom = next;
-    }
-    bottom = Math.min(bottom, Math.max(112, window.innerHeight - height - margin));
-    setToastLift(bottom);
-  }, [copied]);
   useEffect(() => {
     const node = previewRef.current;
     if (!preview || !node) return;
     const height = node.offsetHeight;
     if (height < 2) return;
     const placed = placePopover(preview.iconTop, preview.iconCenter, preview.cellBottom, preview.width, height);
-    if (Math.abs(placed.top - preview.top) <= 1 && Math.abs(placed.left - preview.left) <= 1) return;
-    setPreview({ ...preview, left: placed.left, top: placed.top });
+    if (Math.abs(placed.top - preview.top) <= 1 && Math.abs(placed.left - preview.left) <= 1 && Math.abs(placed.width - preview.width) <= 1) return;
+    setPreview({ ...preview, left: placed.left, top: placed.top, width: placed.width });
   }, [preview]);
   useEffect(() => {
     if (typeof document === "undefined" || document.getElementById("bb-search-reset")) return;
@@ -2662,7 +2653,7 @@ export default function App(): JSX.Element {
         ) : null}
 
         {preview ? (
-          <div ref={previewRef} style={{ position: "absolute", left: preview.left, top: preview.top, width: preview.width, maxWidth: "min(260px, calc(100vw - 24px))", zIndex: 6, pointerEvents: "none", ...overlayFace }}>
+          <div ref={previewRef} style={{ position: "absolute", left: preview.left, top: preview.top, width: preview.width, maxWidth: "calc(100vw - 24px)", zIndex: 8, pointerEvents: "none", background: "#12141a", ...overlayFace }}>
             <GlassPane
               kind="tile"
               href=""
@@ -2686,20 +2677,29 @@ export default function App(): JSX.Element {
         ) : null}
 
         {copied ? (
-          <div style={{ position: "fixed", left: "50%", bottom: `max(${toastLift}px, calc(env(safe-area-inset-bottom, 0px) + 96px))`, transform: "translateX(-50%)", zIndex: 7, pointerEvents: "none", ...overlayFace }}>
-            <GlassPane
-              kind="chip"
-              href=""
-              surface
-              haptic={false}
-              focused={false}
-              onFocus={(): void => {}}
-              onBlur={(): void => {}}
-              frame={{ width: "auto", height: "auto", minWidth: 0, minHeight: 0, borderRadius: 999 }}
-              contentStyle={{ padding: "10px 16px", width: "auto", height: "auto" }}
-            >
-              <span style={{ ...overlayFace, fontSize: 14, whiteSpace: "nowrap" }}>Copied</span>
-            </GlassPane>
+          <div
+            style={{
+              position: "fixed",
+              left: "50%",
+              bottom: "calc(16px + env(safe-area-inset-bottom, 0px))",
+              transform: "translateX(-50%)",
+              zIndex: 9,
+              pointerEvents: "none",
+              margin: 0,
+              padding: "10px 16px",
+              borderRadius: 999,
+              background: dark ? "#111111" : "#ffffff",
+              color: dark ? "#ffffff" : "#111111",
+              fontFamily: theme.font.family,
+              fontWeight: 500,
+              fontSize: 14,
+              lineHeight: 1.2,
+              whiteSpace: "nowrap",
+              fontSynthesis: "none",
+              WebkitFontSmoothing: "antialiased",
+            }}
+          >
+            Copied
           </div>
         ) : null}
 

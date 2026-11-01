@@ -833,8 +833,8 @@ function paintGlass(anchor) {
   layers.append(buildFilter(anchor.dataset.filterId, w, h, images.map, dial));
   const displace = anchor.querySelector(".glass-displace");
   if (anchor.classList.contains("bot-preview")) {
-    displace.style.backdropFilter = "blur(24px) saturate(1.48)";
-    displace.style.webkitBackdropFilter = "blur(24px) saturate(1.48)";
+    displace.style.backdropFilter = "none";
+    displace.style.webkitBackdropFilter = "none";
   } else {
     const ref = "url(#" + anchor.dataset.filterId + ")";
     displace.style.backdropFilter = ref;
@@ -1301,43 +1301,14 @@ function quiet(event) {
   event.stopPropagation();
 }
 
-function placeToast(toast) {
-  toast.hidden = false;
-  toast.style.position = "fixed";
-  toast.style.top = "auto";
-  toast.style.left = "50%";
-  toast.style.transform = "translateX(-50%)";
-  const height = toast.getBoundingClientRect().height || 40;
-  const margin = 12;
-  let bottom = 112;
-  const blockers = [...document.querySelectorAll(".bot-cell-name, nav.links, .site-footer")];
-  for (let guard = 0; guard < 6; guard++) {
-    const toastTop = window.innerHeight - bottom - height;
-    const toastBottom = window.innerHeight - bottom;
-    let next = bottom;
-    for (const node of blockers) {
-      const box = node.getBoundingClientRect();
-      if (box.height < 2 || box.bottom < 0 || box.top > window.innerHeight) continue;
-      if (toastTop < box.bottom && toastBottom > box.top) next = Math.max(next, Math.ceil(window.innerHeight - box.top + margin));
-    }
-    if (next === bottom) break;
-    bottom = next;
-  }
-  bottom = Math.min(bottom, Math.max(112, window.innerHeight - height - margin));
-  toast.style.bottom = "max(" + bottom + "px, calc(env(safe-area-inset-bottom, 0px) + 96px))";
-}
-
 function showCopied() {
   let toast = document.querySelector(".copied-toast");
   if (!toast) {
-    const label = el("span", "copied-label");
-    label.textContent = "Copied";
-    toast = glassPane("tile", "", "", label, { linked: false, haptic: false, className: "glass-toast" });
-    toast.classList.add("copied-toast");
+    toast = el("div", "copied-toast");
+    toast.textContent = "Copied";
     document.body.append(toast);
-    watchGlass(toast);
   }
-  placeToast(toast);
+  toast.hidden = false;
   window.clearTimeout(toast._bbTimer);
   toast._bbTimer = window.setTimeout(() => {
     toast.hidden = true;
@@ -1402,7 +1373,7 @@ function hitsNames(top, left, width, height, names) {
   return names.filter((box) => left < box.right && right > box.left && top < box.bottom && bottom > box.top);
 }
 
-/** Above the icon, a small gap. Below the whole cell only when the viewport top has no room. */
+/** Bottom edge sits 8px above the held icon. A name the card touches is covered whole, not sliced. */
 function placePreview(pop, anchor) {
   const icon = anchor.getBoundingClientRect();
   const cell = anchor.closest(".bot-cell");
@@ -1411,22 +1382,45 @@ function placePreview(pop, anchor) {
   const gap = 8;
   const scrollX = window.scrollX || document.documentElement.scrollLeft || 0;
   const scrollY = window.scrollY || document.documentElement.scrollTop || 0;
-  const width = Math.min(260, window.innerWidth - margin * 2);
-  pop.style.width = width + "px";
   pop.hidden = false;
-  const height = pop.getBoundingClientRect().height || pop.offsetHeight;
+  let width = Math.min(260, window.innerWidth - margin * 2);
   let left = icon.left + icon.width / 2 - width / 2;
   left = Math.max(margin, Math.min(left, window.innerWidth - width - margin));
-  let top = icon.top - height - gap;
-  if (top < margin) {
-    const names = nameBoxes();
-    top = cellBox.bottom + gap;
-    const below = hitsNames(top, left, width, height, names);
-    if (below.length) top = Math.max(...below.map((box) => box.bottom)) + gap;
-    if (top + height > window.innerHeight - margin) top = Math.max(margin, window.innerHeight - height - margin);
+  const pin = () => {
+    pop.style.left = left + scrollX + "px";
+    pop.style.width = width + "px";
+    const height = pop.getBoundingClientRect().height || pop.offsetHeight;
+    let top = icon.top - height - gap;
+    if (top < margin) {
+      top = cellBox.bottom + gap;
+      const below = hitsNames(top, left, width, height, nameBoxes());
+      if (below.length) top = Math.max(...below.map((box) => box.bottom)) + gap;
+      if (top + height > window.innerHeight - margin) top = Math.max(margin, window.innerHeight - height - margin);
+    }
+    pop.style.top = top + scrollY + "px";
+    return height;
+  };
+  let height = pin();
+  for (let pass = 0; pass < 4; pass++) {
+    const cardTop = icon.top - height - gap;
+    let nextLeft = left;
+    let nextRight = left + width;
+    let grew = false;
+    for (const box of nameBoxes()) {
+      const hit = nextLeft < box.right && nextRight > box.left && cardTop < box.bottom && cardTop + height > box.top;
+      if (!hit) continue;
+      if (box.left >= nextLeft - 0.5 && box.right <= nextRight + 0.5) continue;
+      nextLeft = Math.min(nextLeft, box.left);
+      nextRight = Math.max(nextRight, box.right);
+      grew = true;
+    }
+    if (!grew) break;
+    nextLeft = Math.max(margin, nextLeft);
+    nextRight = Math.min(window.innerWidth - margin, nextRight);
+    left = nextLeft;
+    width = Math.max(1, nextRight - nextLeft);
+    height = pin();
   }
-  pop.style.left = left + scrollX + "px";
-  pop.style.top = top + scrollY + "px";
 }
 
 let previewClean = null;
