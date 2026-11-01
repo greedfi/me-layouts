@@ -26,6 +26,8 @@ const GA_MEASUREMENT_ID = "__GA_MEASUREMENT_ID__";
 const META_PIXEL_ID = "__META_PIXEL_ID__";
 /** Corner-mark href. Default is the published .links Install URL. Fillers may leave it or overwrite. Empty, "#", or a still-placeholder token does not navigate. */
 const LINKS_SHARE_HREF = "https://x.ai/bot/iAAjk66qgHyqOys2TEC-K";
+/** Optional pin. A zero-based index or a bot name. The placeholder means no pin. */
+const FEATURED_BOT = "__FEATURED_BOT__";
 /** Product chrome. Not a fill token and not this user's avatar. Eyes are in this image. */
 const LINKS_MARK = "assets/links-mark.png";
 
@@ -734,6 +736,25 @@ function buildStage(look) {
   return stage;
 }
 
+/**
+ * Ink-box shift onto the center of the 24 viewBox. Marks already within
+ * 0.2 of center are omitted so a subpixel nudge does not blur the stroke.
+ * Measured from each path's fill bounds (getBBox).
+ */
+const GLYPH_BIAS = {
+  x: "translate(2.235 1)",
+  instagram: "translate(0 1.585)",
+  linkedin: "translate(0.5 0)",
+  tiktok: "translate(1.2 1.266)",
+  discord: "translate(-0.294 0.8)",
+  telegram: "translate(-0.363 -0.298)",
+  facebook: "translate(-0.875 0.205)",
+  twitch: "translate(1 -0.1)",
+  threads: "translate(3.1 0.4)",
+  bluesky: "translate(0 1.653)",
+  reddit: "translate(-0.957 1.497)",
+};
+
 function glyph(kind) {
   const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
   svg.setAttribute("aria-hidden", "true");
@@ -744,6 +765,8 @@ function glyph(kind) {
   const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
   path.setAttribute("fill", "currentColor");
   path.setAttribute("d", GLYPH[kind]);
+  const bias = GLYPH_BIAS[kind];
+  if (bias) path.setAttribute("transform", bias);
   svg.append(path);
   return svg;
 }
@@ -826,18 +849,21 @@ function layer(className) {
   return el("div", "glass-layer " + className);
 }
 
-function glassPane(kind, href, name, content) {
+function glassPane(kind, href, name, content, options) {
+  const opts = options || {};
+  const linked = opts.linked !== false;
   lensSeq += 1;
-  const anchor = el("a", "glass glass-" + kind);
+  const anchor = el(linked ? "a" : "div", "glass glass-" + kind + (opts.icon ? " glass-icon" : "") + (opts.className ? " " + opts.className : ""));
   anchor.dataset.kind = kind;
   anchor.dataset.filterId = "billboard-lens-" + lensSeq;
+  if (opts.haptic !== false && linked) anchor.dataset.haptic = "1";
   const destination = filled(href);
-  if (destination.length > 0) {
+  if (linked && destination.length > 0) {
     anchor.href = destination;
     anchor.target = "_blank";
     anchor.rel = "noreferrer";
   }
-  if (name) {
+  if (linked && name) {
     anchor.setAttribute("aria-label", name);
     anchor.title = name;
   }
@@ -846,7 +872,13 @@ function glassPane(kind, href, name, content) {
   const hover = el("div", "glass-hover");
   const body = el("div", "glass-content");
   body.append(content);
-  anchor.append(layers, hover, body);
+  anchor.append(layers, hover);
+  if (kind === "tile") {
+    const glare = el("div", "glass-glare");
+    glare.setAttribute("aria-hidden", "true");
+    anchor.append(glare);
+  }
+  anchor.append(body);
   return anchor;
 }
 
@@ -865,6 +897,7 @@ function installTile(bot) {
     img.height = 64;
     well.append(img);
   }
+  if (isNewBot(bot)) well.append(newDot());
   row.append(well);
   if (name.length > 0) {
     const title = el("p", "glass-copy tile-name");
@@ -886,6 +919,46 @@ function miniLink(link) {
   return chip;
 }
 
+/** Four or fewer bots keep the full tile. Five or more share one icon grid. */
+const ICON_GRID_MIN = 5;
+
+function installIconCell(bot) {
+  const name = filled(bot.name);
+  const icon = imageSrc(bot.src);
+  const cell = el("a", "bot-cell");
+  cell.dataset.kind = "tile";
+  cell.dataset.haptic = "1";
+  const destination = filled(bot.href);
+  if (destination.length > 0) {
+    cell.href = destination;
+    cell.target = "_blank";
+    cell.rel = "noreferrer";
+  }
+  if (name.length > 0) {
+    cell.setAttribute("aria-label", name);
+    cell.title = name;
+  }
+  const well = el("div", "icon-well");
+  if (icon.length > 0) {
+    const img = el("img");
+    img.src = icon;
+    img.alt = "";
+    img.width = 64;
+    img.height = 64;
+    well.append(img);
+  }
+  if (isNewBot(bot)) well.append(newDot());
+  cell.dataset.name = name;
+  cell.dataset.desc = filled(bot.desc);
+  cell.append(glassPane("tile", "", "", well, { linked: false, haptic: false, icon: true }));
+  if (name.length > 0) {
+    const title = el("p", "bot-cell-name");
+    title.textContent = name;
+    cell.append(title);
+  }
+  return cell;
+}
+
 /** Default corner control. Same chip glass as the social row. The face is the links-mark image alone. Always rendered. */
 function linksMark() {
   const face = el("div", "mark-face");
@@ -895,7 +968,7 @@ function linksMark() {
   img.width = 36;
   img.height = 36;
   face.append(img);
-  const chip = glassPane("chip", shareHref(LINKS_SHARE_HREF), "Links", face);
+  const chip = glassPane("chip", shareHref(LINKS_SHARE_HREF), "Links", face, { haptic: false });
   chip.classList.add("product-mark");
   // Outside the social row. Outbound counts stay on tile and chip kinds only.
   chip.dataset.kind = "mark";
@@ -1020,10 +1093,399 @@ function installOutboundTracking() {
   document.addEventListener("click", function (event) {
     const target = event.target;
     if (!target || typeof target.closest !== "function") return;
-    const anchor = target.closest("a.glass");
+    const anchor = target.closest("a.glass, a.bot-cell");
     if (!anchor) return;
     trackOutbound(anchor);
   });
+}
+
+function motionReduced() {
+  return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+}
+
+function finePointer() {
+  return window.matchMedia("(hover: hover) and (pointer: fine)").matches;
+}
+
+function clampNum(n, lo, hi) {
+  return n < lo ? lo : n > hi ? hi : n;
+}
+
+let motionClean = null;
+
+/** Pointer glare on tiles, and a slow silk drift that stays inside the bleed. */
+/** Stage covers the document, not just the layout viewport. */
+function fitStage(stage) {
+  if (!stage) return;
+  const doc = document.documentElement;
+  const body = document.body;
+  stage.style.height = "0px";
+  const height = Math.max(doc.scrollHeight, body ? body.scrollHeight : 0, doc.clientHeight);
+  const width = doc.clientWidth;
+  stage.style.position = "absolute";
+  stage.style.top = "0px";
+  stage.style.left = "0px";
+  stage.style.right = "auto";
+  stage.style.bottom = "auto";
+  stage.style.width = width + "px";
+  stage.style.minHeight = "100dvh";
+  stage.style.height = Math.max(height, doc.clientHeight) + "px";
+}
+
+function installStageFit(stage) {
+  fitStage(stage);
+  requestAnimationFrame(() => fitStage(document.querySelector("[data-bb-stage]")));
+  if (document.documentElement.dataset.bbStageFit === "1") return;
+  document.documentElement.dataset.bbStageFit = "1";
+  window.addEventListener("resize", () => fitStage(document.querySelector("[data-bb-stage]")));
+}
+
+function bindMotion(stage) {
+  if (motionClean) {
+    motionClean();
+    motionClean = null;
+  }
+  const root = document.documentElement;
+  if (motionReduced()) {
+    root.style.setProperty("--bb-silk-shift", "0px");
+    return;
+  }
+  const cleaners = [];
+  const stack = stage.querySelector(".silk-stack");
+  if (stack) {
+    const apply = () => {
+      if (motionReduced()) {
+        root.style.setProperty("--bb-silk-shift", "0px");
+        return;
+      }
+      const y = window.scrollY || root.scrollTop || 0;
+      // 14% plate bleed, minus the drift, still leaves far more than 24px.
+      root.style.setProperty("--bb-silk-shift", clampNum(y * 0.035, -24, 24).toFixed(2) + "px");
+    };
+    apply();
+    const onResize = () => {
+      fitStage(stage);
+      apply();
+    };
+    onResize();
+    window.addEventListener("scroll", apply, { passive: true });
+    window.addEventListener("resize", onResize, { passive: true });
+    cleaners.push(() => {
+      window.removeEventListener("scroll", apply);
+      window.removeEventListener("resize", onResize);
+    });
+  } else {
+    root.style.setProperty("--bb-silk-shift", "0px");
+  }
+  if (finePointer()) {
+    document.querySelectorAll(".glass-tile").forEach((node) => {
+      const move = (event) => {
+        const rect = node.getBoundingClientRect();
+        if (rect.width < 2 || rect.height < 2) return;
+        node.style.setProperty("--glare-x", (((event.clientX - rect.left) / rect.width) * 100).toFixed(2) + "%");
+        node.style.setProperty("--glare-y", (((event.clientY - rect.top) / rect.height) * 100).toFixed(2) + "%");
+        node.classList.add("glare-on");
+      };
+      const leave = () => {
+        node.style.removeProperty("--glare-x");
+        node.style.removeProperty("--glare-y");
+        node.classList.remove("glare-on");
+      };
+      node.addEventListener("pointermove", move);
+      node.addEventListener("pointerleave", leave);
+      cleaners.push(() => {
+        node.removeEventListener("pointermove", move);
+        node.removeEventListener("pointerleave", leave);
+      });
+    });
+  }
+  motionClean = () => {
+    for (const fn of cleaners) fn();
+  };
+}
+
+/** Device tilt on coarse pointers. A permission gate that is denied is a no-op. */
+function installTilt() {
+  if (document.documentElement.dataset.bbTiltBound === "1") return;
+  if (motionReduced() || finePointer()) return;
+  document.documentElement.dataset.bbTiltBound = "1";
+  const DOE = window.DeviceOrientationEvent;
+  if (!DOE) return;
+  const onOrient = (event) => {
+    if (motionReduced()) return;
+    if (event.gamma == null || event.beta == null) return;
+    const root = document.documentElement;
+    root.style.setProperty("--bb-glare-x", (50 + clampNum((event.gamma / 28) * 34, -34, 34)).toFixed(2) + "%");
+    root.style.setProperty("--bb-glare-y", (42 + clampNum(((event.beta - 40) / 28) * 34, -34, 34)).toFixed(2) + "%");
+    root.dataset.bbTilt = "1";
+  };
+  const listen = () => window.addEventListener("deviceorientation", onOrient);
+  try {
+    if (typeof DOE.requestPermission === "function") {
+      window.addEventListener(
+        "pointerdown",
+        () => {
+          DOE.requestPermission()
+            .then((state) => {
+              if (state === "granted") listen();
+            })
+            .catch(() => {});
+        },
+        { once: true },
+      );
+      return;
+    }
+  } catch (err) {
+    return;
+  }
+  listen();
+}
+
+function installHaptic() {
+  if (document.documentElement.dataset.bbHaptic === "1") return;
+  document.documentElement.dataset.bbHaptic = "1";
+  document.addEventListener("pointerdown", (event) => {
+    const target = event.target;
+    if (!target || typeof target.closest !== "function") return;
+    if (!target.closest("[data-haptic='1']")) return;
+    try {
+      if (typeof navigator.vibrate === "function") navigator.vibrate(10);
+    } catch (err) {
+      /* this device has no haptic */
+    }
+  });
+}
+
+const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
+
+function isNewBot(bot) {
+  const raw = filled(bot && bot.added);
+  if (!raw || /^__.+__$/.test(raw)) return false;
+  const then = Date.parse(raw);
+  if (!Number.isFinite(then)) return false;
+  const age = Date.now() - then;
+  return age >= 0 && age <= WEEK_MS;
+}
+
+function newDot() {
+  const dot = el("span", "new-dot");
+  dot.setAttribute("aria-hidden", "true");
+  return dot;
+}
+
+function resolveFeatured(shown) {
+  const raw = optedToken(FEATURED_BOT);
+  if (!raw) return -1;
+  if (/^\d+$/.test(raw)) {
+    const bot = bots[Number(raw)];
+    if (!bot) return -1;
+    return shown.indexOf(bot);
+  }
+  const needle = raw.toLowerCase();
+  return shown.findIndex((bot) => filled(bot.name).toLowerCase() === needle || filled(bot.href) === raw);
+}
+
+function countLine(botCount, linkCount) {
+  const botsLabel = botCount + (botCount === 1 ? " bot" : " bots");
+  const linksLabel = linkCount + (linkCount === 1 ? " link" : " links");
+  return botsLabel + " · " + linksLabel;
+}
+
+function quiet(event) {
+  event["prevent" + "Default"]();
+  event.stopPropagation();
+}
+
+function showCopied() {
+  let toast = document.querySelector(".copied-toast");
+  if (!toast) {
+    const label = el("span", "copied-label");
+    label.textContent = "Copied";
+    toast = glassPane("tile", "", "", label, { linked: false, haptic: false, className: "glass-toast" });
+    toast.classList.add("copied-toast");
+    document.body.append(toast);
+    watchGlass(toast);
+  }
+  toast.hidden = false;
+  window.clearTimeout(toast._bbTimer);
+  toast._bbTimer = window.setTimeout(() => {
+    toast.hidden = true;
+  }, 1400);
+}
+
+function openShareHref(mark) {
+  const href = mark.getAttribute("href") || "";
+  if (href) window.open(href, "_blank", "noopener");
+}
+
+function copyPageUrl(mark) {
+  const nav = navigator;
+  const url = location.href;
+  if (!nav.clipboard || typeof nav.clipboard.writeText !== "function") {
+    openShareHref(mark);
+    return;
+  }
+  nav.clipboard.writeText(url).then(() => showCopied()).catch(() => openShareHref(mark));
+}
+
+function bindShare(mark) {
+  mark.addEventListener("click", (event) => {
+    const url = location.href;
+    const title = document.title || "";
+    const coarse = window.matchMedia("(pointer: coarse)").matches || window.innerWidth < 480;
+    const nav = navigator;
+    if (coarse && typeof nav.share === "function") {
+      quiet(event);
+      nav.share({ title: title, url: url }).then(() => {}).catch((err) => {
+        if (err && err.name === "AbortError") return;
+        copyPageUrl(mark);
+      });
+      return;
+    }
+    if (nav.clipboard && typeof nav.clipboard.writeText === "function") {
+      quiet(event);
+      copyPageUrl(mark);
+    }
+  });
+}
+
+function ensurePreview() {
+  let pop = document.querySelector(".bot-preview");
+  if (pop) return pop;
+  const copy = el("p", "bot-preview-copy");
+  pop = glassPane("tile", "", "", copy, { linked: false, haptic: false, className: "bot-preview" });
+  pop.hidden = true;
+  document.body.append(pop);
+  watchGlass(pop);
+  return pop;
+}
+
+function placePreview(pop, anchor) {
+  const box = anchor.getBoundingClientRect();
+  const margin = 12;
+  const width = Math.min(260, window.innerWidth - margin * 2);
+  pop.style.width = width + "px";
+  pop.hidden = false;
+  const height = pop.getBoundingClientRect().height || pop.offsetHeight;
+  let left = box.left + box.width / 2 - width / 2;
+  left = Math.max(margin, Math.min(left, window.innerWidth - width - margin));
+  let top = box.top - height - 8;
+  if (top < margin) top = box.bottom + 8;
+  if (top + height > window.innerHeight - margin) top = Math.max(margin, window.innerHeight - height - margin);
+  pop.style.left = left + "px";
+  pop.style.top = top + "px";
+}
+
+let previewClean = null;
+
+function bindPreview(root) {
+  if (previewClean) previewClean();
+  const pop = ensurePreview();
+  const copy = pop.querySelector(".bot-preview-copy");
+  let timer = 0;
+  let sticky = false;
+  const hide = () => {
+    pop.hidden = true;
+    if (copy) copy.textContent = "";
+    sticky = false;
+  };
+  const show = (cell) => {
+    const desc = cell.dataset.desc || "";
+    if (!desc || !copy) return;
+    copy.textContent = desc;
+    placePreview(pop, cell.querySelector(".glass-icon") || cell);
+  };
+  root.querySelectorAll(".bot-cell").forEach((cell) => {
+    let originX = 0;
+    let originY = 0;
+    let heldOpen = false;
+    const clearHold = () => window.clearTimeout(timer);
+    cell.addEventListener("pointerdown", (event) => {
+      if (event.button !== 0) return;
+      heldOpen = false;
+      originX = event.clientX;
+      originY = event.clientY;
+      clearHold();
+      timer = window.setTimeout(() => {
+        heldOpen = true;
+        cell.dataset.suppress = "1";
+        show(cell);
+      }, 450);
+    });
+    cell.addEventListener("pointermove", (event) => {
+      if (Math.hypot(event.clientX - originX, event.clientY - originY) > 12) clearHold();
+    });
+    cell.addEventListener("pointerup", () => {
+      clearHold();
+      if (heldOpen && !sticky) hide();
+    });
+    cell.addEventListener("pointercancel", () => {
+      clearHold();
+      if (!sticky) hide();
+    });
+    cell.addEventListener("click", (event) => {
+      if (cell.dataset.suppress === "1") {
+        quiet(event);
+        cell.dataset.suppress = "";
+        heldOpen = false;
+      }
+    }, true);
+    cell.addEventListener("contextmenu", (event) => {
+      quiet(event);
+      if (event.button === 0) return;
+      clearHold();
+      sticky = true;
+      show(cell);
+    });
+    cell.addEventListener("mouseenter", () => {
+      if (!finePointer()) return;
+      clearHold();
+      timer = window.setTimeout(() => show(cell), 450);
+    });
+    cell.addEventListener("mouseleave", () => {
+      clearHold();
+      if (!sticky) hide();
+    });
+  });
+  const onDoc = (event) => {
+    if (pop.hidden) return;
+    const target = event.target;
+    if (target && target.closest && (target.closest(".bot-preview") || target.closest(".bot-cell"))) return;
+    hide();
+  };
+  const onKey = (event) => {
+    if (event.key === "Escape") hide();
+  };
+  document.addEventListener("pointerdown", onDoc);
+  document.addEventListener("keydown", onKey);
+  previewClean = () => {
+    document.removeEventListener("pointerdown", onDoc);
+    document.removeEventListener("keydown", onKey);
+    window.clearTimeout(timer);
+  };
+}
+
+function searchField() {
+  const input = el("input", "bot-search-input");
+  input.type = "search";
+  input.placeholder = "Search";
+  input.setAttribute("aria-label", "Search bots");
+  input.addEventListener("input", () => {
+    const query = input.value.trim().toLowerCase();
+    const cells = document.querySelectorAll(".bot-grid .bot-cell");
+    let shown = 0;
+    cells.forEach((cell) => {
+      const match = query.length === 0 || (cell.dataset.name || "").toLowerCase().includes(query);
+      cell.hidden = !match;
+      if (match) shown += 1;
+    });
+    const empty = document.querySelector(".bot-empty");
+    if (empty) empty.hidden = query.length === 0 || shown > 0;
+  });
+  const pane = glassPane("tile", "", "", input, { linked: false, haptic: false, className: "glass-search" });
+  const wrap = el("div", "bot-search");
+  wrap.append(pane);
+  return wrap;
 }
 
 function render() {
@@ -1080,16 +1542,42 @@ function render() {
     p.textContent = bio;
     mast.append(p);
   }
+  const shownBots = bots.filter((bot) => filled(bot.name).length > 0 || filled(bot.desc).length > 0 || filled(bot.href).length > 0 || filled(bot.src).length > 0);
+  const shownLinks = links.filter((link) => filled(link.label).length > 0 || filled(link.display).length > 0 || filled(link.href).length > 0);
+  if (shownBots.length >= ICON_GRID_MIN) {
+    const counts = el("p", "counts");
+    counts.textContent = countLine(shownBots.length, shownLinks.length);
+    mast.append(counts);
+  }
   band.append(mast);
 
-  const shownBots = bots.filter((bot) => filled(bot.name).length > 0 || filled(bot.desc).length > 0 || filled(bot.href).length > 0 || filled(bot.src).length > 0);
-  if (shownBots.length > 0) {
+  const featuredAt = shownBots.length >= ICON_GRID_MIN ? resolveFeatured(shownBots) : -1;
+  const featured = featuredAt >= 0 ? shownBots[featuredAt] : null;
+  const gridBots = featured ? shownBots.filter((_, index) => index !== featuredAt) : shownBots;
+  if (shownBots.length > 0 && shownBots.length < ICON_GRID_MIN) {
     const section = el("section", "bots");
     for (const bot of shownBots) section.append(installTile(bot));
     band.append(section);
   }
+  if (featured) {
+    const section = el("section", "bots");
+    section.append(installTile(featured));
+    band.append(section);
+  }
+  if (shownBots.length >= 12) {
+    band.append(searchField());
+    const empty = el("p", "bot-empty");
+    empty.textContent = "No matches";
+    empty.hidden = true;
+    band.append(empty);
+  }
+  if (shownBots.length >= ICON_GRID_MIN && gridBots.length > 0) {
+    const section = el("section", "bot-grid");
+    section.setAttribute("aria-label", "Bots");
+    for (const bot of gridBots) section.append(installIconCell(bot));
+    band.append(section);
+  }
 
-  const shownLinks = links.filter((link) => filled(link.label).length > 0 || filled(link.display).length > 0 || filled(link.href).length > 0);
   if (shownLinks.length > 0) {
     const nav = el("nav", "links");
     for (const link of shownLinks) nav.append(miniLink(link));
@@ -1105,17 +1593,27 @@ function render() {
   root.append(band);
   stage.querySelectorAll("[data-bb-drift]").forEach(startDrift);
   root.querySelectorAll(".glass").forEach(watchGlass);
+  const mark = root.querySelector(".product-mark");
+  if (mark) bindShare(mark);
+  bindPreview(root);
+  installStageFit(stage);
+  bindMotion(stage);
+  installTilt();
 }
 
 function boot() {
   applyTabTitle();
   installOptionalTrackers();
   installOutboundTracking();
+  installHaptic();
+  installTilt();
   render();
   const mq = window.matchMedia("(prefers-color-scheme: dark)");
+  const reduceMq = window.matchMedia("(prefers-reduced-motion: reduce)");
   const onChange = () => render();
   if (typeof mq.addEventListener === "function") mq.addEventListener("change", onChange);
   else if (typeof mq.addListener === "function") mq.addListener(onChange);
+  if (typeof reduceMq.addEventListener === "function") reduceMq.addEventListener("change", onChange);
 }
 
 if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", boot);

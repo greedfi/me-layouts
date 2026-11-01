@@ -224,6 +224,7 @@ for (const token of [
   "const GA_MEASUREMENT_ID",
   "const META_PIXEL_ID",
   "const LINKS_SHARE_HREF",
+  "const FEATURED_BOT",
   "const bots",
   "const links",
   'const LAYOUT = "billboard"',
