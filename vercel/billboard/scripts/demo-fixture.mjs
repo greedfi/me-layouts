@@ -275,10 +275,26 @@ const CHECKS = `(() => {
   if (scrollWidth > document.documentElement.clientWidth + 1) fail("horizontal overflow " + scrollWidth + " > " + document.documentElement.clientWidth);
   const stage = document.querySelector(".stage");
   if (stage) {
-    const box = stage.getBoundingClientRect();
-    if (box.left > 1 || box.top > 1 || box.right < window.innerWidth - 1 || box.bottom < window.innerHeight - 1) {
-      fail("stage is not full bleed " + JSON.stringify({ left: box.left, top: box.top, right: box.right, bottom: box.bottom, w: window.innerWidth, h: window.innerHeight }));
-    }
+    const docH = Math.max(document.documentElement.scrollHeight, document.body.scrollHeight);
+    const viewW = document.documentElement.clientWidth;
+    if (stage.offsetHeight < docH - 2) fail("stage shorter than the page " + stage.offsetHeight + " < " + docH);
+    if (stage.offsetWidth < viewW - 2) fail("stage narrower than the viewport");
+    const topBox = stage.getBoundingClientRect();
+    if (topBox.left > 1 || topBox.right < viewW - 2) fail("side gutter at top");
+    window.scrollTo(0, Math.max(0, docH - window.innerHeight));
+    const bottomBox = stage.getBoundingClientRect();
+    if (bottomBox.left > 1 || bottomBox.right < viewW - 2) fail("side gutter when scrolled");
+    if (bottomBox.top > 1) fail("stage starts below the viewport when scrolled");
+    if (bottomBox.bottom < window.innerHeight - 1) fail("stage ends above the viewport when scrolled");
+    window.scrollTo(0, 0);
+  }
+  const names = document.querySelector(".bot-cell-name");
+  if (names) {
+    const ink = getComputedStyle(document.querySelector(".handle") || document.body).color;
+    const nameInk = getComputedStyle(names).color;
+    if (nameInk !== ink) fail("grid name ink " + nameInk + " != body ink " + ink);
+    const shadow = getComputedStyle(names).textShadow;
+    if (!shadow || shadow === "none") fail("grid name has no text shadow");
   }
   return fails;
 })()`;

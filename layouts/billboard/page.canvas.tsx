@@ -1140,12 +1140,14 @@ function stageBlooms(look: BillboardLook): BloomSpec[] {
 }
 
 const STAGE_FRAME: CSSProperties = {
-  // Fixed to the viewport. An absolute stage only paints the page box, and
-  // that box shrink-wraps when the host sizes from content — left and right
-  // then stay host ground. Fixed covers the viewport even when an ancestor
-  // clips the page.
-  position: "fixed",
-  inset: 0,
+  // Document-tall. A viewport-fixed stage leaves the flat ground below the
+  // first screen, in a tall scroll and in a full-page capture. The measured
+  // height covers the page; width 100% meets the edges.
+  position: "absolute",
+  top: 0,
+  left: 0,
+  width: "100%",
+  minHeight: "100dvh",
   zIndex: 0,
   pointerEvents: "none",
   overflow: "hidden",
@@ -1201,12 +1203,56 @@ function silkFilter(accent: AccentName): string {
 /**
  * Graphite plus silver. Neutral blooms and a soft sheen only — no hairline lattice.
  */
-function GraphiteStage({ look }: { look: BillboardLook }): JSX.Element {
+/** Content height with the stage collapsed, so the plates cannot inflate the page. */
+function usePageCover(): number {
+  const [cover, setCover] = useState(0);
+  useEffect(() => {
+    if (typeof document === "undefined") return;
+    let frame = 0;
+    const fit = (): void => {
+      const stage = document.querySelector("[data-bb-stage]");
+      const node = stage instanceof HTMLElement ? stage : null;
+      const previous = node ? node.style.height : "";
+      if (node) node.style.height = "0px";
+      const doc = document.documentElement;
+      const next = Math.max(doc.scrollHeight, document.body?.scrollHeight ?? 0, doc.clientHeight);
+      if (node) node.style.height = previous;
+      setCover((prev) => (prev === next ? prev : next));
+    };
+    const schedule = (): void => {
+      cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(fit);
+    };
+    schedule();
+    const observer = new ResizeObserver(schedule);
+    observer.observe(document.documentElement);
+    if (document.body) observer.observe(document.body);
+    const page = document.getElementById(LAYOUT);
+    if (page) observer.observe(page);
+    window.addEventListener("resize", schedule);
+    return () => {
+      cancelAnimationFrame(frame);
+      observer.disconnect();
+      window.removeEventListener("resize", schedule);
+    };
+  }, []);
+  return cover;
+}
+
+function stageBox(cover: number, extra: CSSProperties): CSSProperties {
+  return {
+    ...STAGE_FRAME,
+    ...extra,
+    height: cover > 0 ? cover : "100%",
+  };
+}
+
+function GraphiteStage({ look, cover }: { look: BillboardLook; cover: number }): JSX.Element {
   const dark = look.dark;
   const band = dark ? BAND_DARK : BAND_LIGHT;
   const scrim = dark ? SCRIM_DARK : SCRIM_LIGHT;
   return (
-    <div aria-hidden style={{ ...STAGE_FRAME, background: stageGround(look) }}>
+    <div aria-hidden data-bb-stage="" style={stageBox(cover, { background: stageGround(look) })}>
       {stageBlooms(look).map((bloom) => (
         <Drift
           key={bloom.key}
@@ -1264,7 +1310,7 @@ function GraphiteStage({ look }: { look: BillboardLook }): JSX.Element {
  * does not cover the light field. Those three loops stay. A named accent
  * hue-shifts the stack. Silver does not. Tiles stay neutral.
  */
-function SilkStage({ look }: { look: BillboardLook }): JSX.Element {
+function SilkStage({ look, cover }: { look: BillboardLook; cover: number }): JSX.Element {
   const dark = look.dark;
   const ground = dark ? SILK_DARK : SILK_DAY;
   // Screen lives on the image in the dark stack. That is the studio composite.
@@ -1283,7 +1329,7 @@ function SilkStage({ look }: { look: BillboardLook }): JSX.Element {
     WebkitMaskImage: SILK_MASK_PEACH,
   };
   return (
-    <div aria-hidden style={{ ...STAGE_FRAME, isolation: "isolate", background: stageGround(look) }}>
+    <div aria-hidden data-bb-stage="" style={stageBox(cover, { isolation: "isolate", background: stageGround(look) })}>
       <div
         style={{
           position: "absolute",
@@ -1323,6 +1369,7 @@ function SilkStage({ look }: { look: BillboardLook }): JSX.Element {
 function Stage(): JSX.Element {
   const look = useBillboardLook();
   const desktop = useDesktop();
+  const cover = usePageCover();
   const ref = useRef<HTMLDivElement | null>(null);
   // #root is contain:paint and max-width 72rem, which traps position:fixed
   // and leaves the document ground in the side margins. On a desktop the
@@ -1344,7 +1391,7 @@ function Stage(): JSX.Element {
       if (home && node.isConnected && node.parentElement !== home) home.insertBefore(node, home.firstChild);
     };
   });
-  const stage = look.stage === "color" || look.accent !== "silver" ? <SilkStage look={look} /> : <GraphiteStage look={look} />;
+  const stage = look.stage === "color" || look.accent !== "silver" ? <SilkStage look={look} cover={cover} /> : <GraphiteStage look={look} cover={cover} />;
   return (
     <div ref={ref} style={{ display: "contents" }}>
       {stage}
@@ -1386,8 +1433,10 @@ function useStageDocument(ground: string): void {
     body.style.margin = "0";
     html.style.padding = "0";
     body.style.padding = "0";
-    html.style.minHeight = "100%";
-    body.style.minHeight = "100%";
+    html.style.position = "relative";
+    body.style.position = "relative";
+    html.style.minHeight = "100dvh";
+    body.style.minHeight = "100dvh";
     html.style.width = "100%";
     body.style.width = "100%";
     // 100dvw can be a hair wider than the layout viewport. Clip that
@@ -1435,9 +1484,7 @@ function useSilkParallax(): void {
         return;
       }
       const y = window.scrollY || root.scrollTop || 0;
-      const view = Math.min(window.innerHeight || 0, window.innerWidth || 0);
-      const limit = Math.max(0, view * 0.14 - 12);
-      root.style.setProperty("--bb-silk-shift", `${clampNum(y * 0.05, -limit, limit).toFixed(2)}px`);
+      root.style.setProperty("--bb-silk-shift", `${clampNum(y * 0.035, -24, 24).toFixed(2)}px`);
     };
     const onScroll = (): void => {
       if (raf) return;
@@ -2079,13 +2126,14 @@ function BotIcon({ bot, desktop }: { bot: Bot; desktop: boolean }): JSX.Element 
         <p
           style={{
             fontFamily: look.theme.font.family,
-            color: look.glassInk,
+            color: look.ink,
             fontSize: 12,
             lineHeight: 1.25,
             fontWeight: look.theme.weight.medium,
             letterSpacing: "0",
             textAlign: "center",
-            textShadow: "var(--bb-ink-shadow)",
+            textShadow: look.dark ? SOFT_SHADOW_DARK : SOFT_SHADOW_LIGHT,
+            paddingBottom: 2,
             margin: 0,
             width: "100%",
             maxWidth: "100%",

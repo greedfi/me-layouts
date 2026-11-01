@@ -1108,6 +1108,32 @@ function clampNum(n, lo, hi) {
 let motionClean = null;
 
 /** Pointer glare on tiles, and a slow silk drift that stays inside the bleed. */
+/** Stage covers the document, not just the layout viewport. */
+function fitStage(stage) {
+  if (!stage) return;
+  const doc = document.documentElement;
+  const body = document.body;
+  stage.style.height = "0px";
+  const height = Math.max(doc.scrollHeight, body ? body.scrollHeight : 0, doc.clientHeight);
+  const width = doc.clientWidth;
+  stage.style.position = "absolute";
+  stage.style.top = "0px";
+  stage.style.left = "0px";
+  stage.style.right = "auto";
+  stage.style.bottom = "auto";
+  stage.style.width = width + "px";
+  stage.style.minHeight = "100dvh";
+  stage.style.height = Math.max(height, doc.clientHeight) + "px";
+}
+
+function installStageFit(stage) {
+  fitStage(stage);
+  requestAnimationFrame(() => fitStage(document.querySelector("[data-bb-stage]")));
+  if (document.documentElement.dataset.bbStageFit === "1") return;
+  document.documentElement.dataset.bbStageFit = "1";
+  window.addEventListener("resize", () => fitStage(document.querySelector("[data-bb-stage]")));
+}
+
 function bindMotion(stage) {
   if (motionClean) {
     motionClean();
@@ -1127,16 +1153,20 @@ function bindMotion(stage) {
         return;
       }
       const y = window.scrollY || root.scrollTop || 0;
-      const view = Math.min(window.innerHeight || 0, window.innerWidth || 0);
-      const limit = Math.max(0, view * 0.14 - 12);
-      root.style.setProperty("--bb-silk-shift", clampNum(y * 0.05, -limit, limit).toFixed(2) + "px");
+      // 14% plate bleed, minus the drift, still leaves far more than 24px.
+      root.style.setProperty("--bb-silk-shift", clampNum(y * 0.035, -24, 24).toFixed(2) + "px");
     };
     apply();
+    const onResize = () => {
+      fitStage(stage);
+      apply();
+    };
+    onResize();
     window.addEventListener("scroll", apply, { passive: true });
-    window.addEventListener("resize", apply, { passive: true });
+    window.addEventListener("resize", onResize, { passive: true });
     cleaners.push(() => {
       window.removeEventListener("scroll", apply);
-      window.removeEventListener("resize", apply);
+      window.removeEventListener("resize", onResize);
     });
   } else {
     root.style.setProperty("--bb-silk-shift", "0px");
@@ -1306,6 +1336,7 @@ function render() {
   root.append(band);
   stage.querySelectorAll("[data-bb-drift]").forEach(startDrift);
   root.querySelectorAll(".glass").forEach(watchGlass);
+  installStageFit(stage);
   bindMotion(stage);
   installTilt();
 }
