@@ -734,6 +734,25 @@ function buildStage(look) {
   return stage;
 }
 
+/**
+ * Ink-box shift onto the center of the 24 viewBox. Marks already within
+ * 0.2 of center are omitted so a subpixel nudge does not blur the stroke.
+ * Measured from each path's fill bounds (getBBox).
+ */
+const GLYPH_BIAS = {
+  x: "translate(2.235 1)",
+  instagram: "translate(0 1.585)",
+  linkedin: "translate(0.5 0)",
+  tiktok: "translate(1.2 1.266)",
+  discord: "translate(-0.294 0.8)",
+  telegram: "translate(-0.363 -0.298)",
+  facebook: "translate(-0.875 0.205)",
+  twitch: "translate(1 -0.1)",
+  threads: "translate(3.1 0.4)",
+  bluesky: "translate(0 1.653)",
+  reddit: "translate(-0.957 1.497)",
+};
+
 function glyph(kind) {
   const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
   svg.setAttribute("aria-hidden", "true");
@@ -744,6 +763,8 @@ function glyph(kind) {
   const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
   path.setAttribute("fill", "currentColor");
   path.setAttribute("d", GLYPH[kind]);
+  const bias = GLYPH_BIAS[kind];
+  if (bias) path.setAttribute("transform", bias);
   svg.append(path);
   return svg;
 }
@@ -826,18 +847,21 @@ function layer(className) {
   return el("div", "glass-layer " + className);
 }
 
-function glassPane(kind, href, name, content) {
+function glassPane(kind, href, name, content, options) {
+  const opts = options || {};
+  const linked = opts.linked !== false;
   lensSeq += 1;
-  const anchor = el("a", "glass glass-" + kind);
+  const anchor = el(linked ? "a" : "div", "glass glass-" + kind + (opts.icon ? " glass-icon" : ""));
   anchor.dataset.kind = kind;
   anchor.dataset.filterId = "billboard-lens-" + lensSeq;
+  if (opts.haptic !== false && linked) anchor.dataset.haptic = "1";
   const destination = filled(href);
-  if (destination.length > 0) {
+  if (linked && destination.length > 0) {
     anchor.href = destination;
     anchor.target = "_blank";
     anchor.rel = "noreferrer";
   }
-  if (name) {
+  if (linked && name) {
     anchor.setAttribute("aria-label", name);
     anchor.title = name;
   }
@@ -846,7 +870,13 @@ function glassPane(kind, href, name, content) {
   const hover = el("div", "glass-hover");
   const body = el("div", "glass-content");
   body.append(content);
-  anchor.append(layers, hover, body);
+  anchor.append(layers, hover);
+  if (kind === "tile") {
+    const glare = el("div", "glass-glare");
+    glare.setAttribute("aria-hidden", "true");
+    anchor.append(glare);
+  }
+  anchor.append(body);
   return anchor;
 }
 
@@ -886,6 +916,43 @@ function miniLink(link) {
   return chip;
 }
 
+/** Four or fewer bots keep the full tile. Five or more share one icon grid. */
+const ICON_GRID_MIN = 5;
+
+function installIconCell(bot) {
+  const name = filled(bot.name);
+  const icon = imageSrc(bot.src);
+  const cell = el("a", "bot-cell");
+  cell.dataset.kind = "tile";
+  cell.dataset.haptic = "1";
+  const destination = filled(bot.href);
+  if (destination.length > 0) {
+    cell.href = destination;
+    cell.target = "_blank";
+    cell.rel = "noreferrer";
+  }
+  if (name.length > 0) {
+    cell.setAttribute("aria-label", name);
+    cell.title = name;
+  }
+  const well = el("div", "icon-well");
+  if (icon.length > 0) {
+    const img = el("img");
+    img.src = icon;
+    img.alt = "";
+    img.width = 64;
+    img.height = 64;
+    well.append(img);
+  }
+  cell.append(glassPane("tile", "", "", well, { linked: false, haptic: false, icon: true }));
+  if (name.length > 0) {
+    const title = el("p", "glass-copy bot-cell-name");
+    title.textContent = name;
+    cell.append(title);
+  }
+  return cell;
+}
+
 /** Default corner control. Same chip glass as the social row. The face is the links-mark image alone. Always rendered. */
 function linksMark() {
   const face = el("div", "mark-face");
@@ -895,7 +962,7 @@ function linksMark() {
   img.width = 36;
   img.height = 36;
   face.append(img);
-  const chip = glassPane("chip", shareHref(LINKS_SHARE_HREF), "Links", face);
+  const chip = glassPane("chip", shareHref(LINKS_SHARE_HREF), "Links", face, { haptic: false });
   chip.classList.add("product-mark");
   // Outside the social row. Outbound counts stay on tile and chip kinds only.
   chip.dataset.kind = "mark";
@@ -1020,9 +1087,136 @@ function installOutboundTracking() {
   document.addEventListener("click", function (event) {
     const target = event.target;
     if (!target || typeof target.closest !== "function") return;
-    const anchor = target.closest("a.glass");
+    const anchor = target.closest("a.glass, a.bot-cell");
     if (!anchor) return;
     trackOutbound(anchor);
+  });
+}
+
+function motionReduced() {
+  return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+}
+
+function finePointer() {
+  return window.matchMedia("(hover: hover) and (pointer: fine)").matches;
+}
+
+function clampNum(n, lo, hi) {
+  return n < lo ? lo : n > hi ? hi : n;
+}
+
+let motionClean = null;
+
+/** Pointer glare on tiles, and a slow silk drift that stays inside the bleed. */
+function bindMotion(stage) {
+  if (motionClean) {
+    motionClean();
+    motionClean = null;
+  }
+  const root = document.documentElement;
+  if (motionReduced()) {
+    root.style.setProperty("--bb-silk-shift", "0px");
+    return;
+  }
+  const cleaners = [];
+  const stack = stage.querySelector(".silk-stack");
+  if (stack) {
+    const apply = () => {
+      if (motionReduced()) {
+        root.style.setProperty("--bb-silk-shift", "0px");
+        return;
+      }
+      const y = window.scrollY || root.scrollTop || 0;
+      const view = Math.min(window.innerHeight || 0, window.innerWidth || 0);
+      const limit = Math.max(0, view * 0.14 - 12);
+      root.style.setProperty("--bb-silk-shift", clampNum(y * 0.05, -limit, limit).toFixed(2) + "px");
+    };
+    apply();
+    window.addEventListener("scroll", apply, { passive: true });
+    window.addEventListener("resize", apply, { passive: true });
+    cleaners.push(() => {
+      window.removeEventListener("scroll", apply);
+      window.removeEventListener("resize", apply);
+    });
+  } else {
+    root.style.setProperty("--bb-silk-shift", "0px");
+  }
+  if (finePointer()) {
+    document.querySelectorAll(".glass-tile").forEach((node) => {
+      const move = (event) => {
+        const rect = node.getBoundingClientRect();
+        if (rect.width < 2 || rect.height < 2) return;
+        node.style.setProperty("--glare-x", (((event.clientX - rect.left) / rect.width) * 100).toFixed(2) + "%");
+        node.style.setProperty("--glare-y", (((event.clientY - rect.top) / rect.height) * 100).toFixed(2) + "%");
+        node.classList.add("glare-on");
+      };
+      const leave = () => {
+        node.style.removeProperty("--glare-x");
+        node.style.removeProperty("--glare-y");
+        node.classList.remove("glare-on");
+      };
+      node.addEventListener("pointermove", move);
+      node.addEventListener("pointerleave", leave);
+      cleaners.push(() => {
+        node.removeEventListener("pointermove", move);
+        node.removeEventListener("pointerleave", leave);
+      });
+    });
+  }
+  motionClean = () => {
+    for (const fn of cleaners) fn();
+  };
+}
+
+/** Device tilt on coarse pointers. A permission gate that is denied is a no-op. */
+function installTilt() {
+  if (document.documentElement.dataset.bbTiltBound === "1") return;
+  if (motionReduced() || finePointer()) return;
+  document.documentElement.dataset.bbTiltBound = "1";
+  const DOE = window.DeviceOrientationEvent;
+  if (!DOE) return;
+  const onOrient = (event) => {
+    if (motionReduced()) return;
+    if (event.gamma == null || event.beta == null) return;
+    const root = document.documentElement;
+    root.style.setProperty("--bb-glare-x", (50 + clampNum((event.gamma / 28) * 34, -34, 34)).toFixed(2) + "%");
+    root.style.setProperty("--bb-glare-y", (42 + clampNum(((event.beta - 40) / 28) * 34, -34, 34)).toFixed(2) + "%");
+    root.dataset.bbTilt = "1";
+  };
+  const listen = () => window.addEventListener("deviceorientation", onOrient);
+  try {
+    if (typeof DOE.requestPermission === "function") {
+      window.addEventListener(
+        "pointerdown",
+        () => {
+          DOE.requestPermission()
+            .then((state) => {
+              if (state === "granted") listen();
+            })
+            .catch(() => {});
+        },
+        { once: true },
+      );
+      return;
+    }
+  } catch (err) {
+    return;
+  }
+  listen();
+}
+
+function installHaptic() {
+  if (document.documentElement.dataset.bbHaptic === "1") return;
+  document.documentElement.dataset.bbHaptic = "1";
+  document.addEventListener("pointerdown", (event) => {
+    const target = event.target;
+    if (!target || typeof target.closest !== "function") return;
+    if (!target.closest("[data-haptic='1']")) return;
+    try {
+      if (typeof navigator.vibrate === "function") navigator.vibrate(10);
+    } catch (err) {
+      /* this device has no haptic */
+    }
   });
 }
 
@@ -1084,9 +1278,16 @@ function render() {
 
   const shownBots = bots.filter((bot) => filled(bot.name).length > 0 || filled(bot.desc).length > 0 || filled(bot.href).length > 0 || filled(bot.src).length > 0);
   if (shownBots.length > 0) {
-    const section = el("section", "bots");
-    for (const bot of shownBots) section.append(installTile(bot));
-    band.append(section);
+    if (shownBots.length >= ICON_GRID_MIN) {
+      const section = el("section", "bot-grid");
+      section.setAttribute("aria-label", "Bots");
+      for (const bot of shownBots) section.append(installIconCell(bot));
+      band.append(section);
+    } else {
+      const section = el("section", "bots");
+      for (const bot of shownBots) section.append(installTile(bot));
+      band.append(section);
+    }
   }
 
   const shownLinks = links.filter((link) => filled(link.label).length > 0 || filled(link.display).length > 0 || filled(link.href).length > 0);
@@ -1105,17 +1306,23 @@ function render() {
   root.append(band);
   stage.querySelectorAll("[data-bb-drift]").forEach(startDrift);
   root.querySelectorAll(".glass").forEach(watchGlass);
+  bindMotion(stage);
+  installTilt();
 }
 
 function boot() {
   applyTabTitle();
   installOptionalTrackers();
   installOutboundTracking();
+  installHaptic();
+  installTilt();
   render();
   const mq = window.matchMedia("(prefers-color-scheme: dark)");
+  const reduceMq = window.matchMedia("(prefers-reduced-motion: reduce)");
   const onChange = () => render();
   if (typeof mq.addEventListener === "function") mq.addEventListener("change", onChange);
   else if (typeof mq.addListener === "function") mq.addListener(onChange);
+  if (typeof reduceMq.addEventListener === "function") reduceMq.addEventListener("change", onChange);
 }
 
 if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", boot);
