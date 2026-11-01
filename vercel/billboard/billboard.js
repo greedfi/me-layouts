@@ -1367,60 +1367,40 @@ function nameBoxes() {
   return [...document.querySelectorAll(".bot-cell-name")].map((node) => node.getBoundingClientRect());
 }
 
-function hitsNames(top, left, width, height, names) {
-  const bottom = top + height;
-  const right = left + width;
-  return names.filter((box) => left < box.right && right > box.left && top < box.bottom && bottom > box.top);
+function clearPreviewing() {
+  document.querySelectorAll(".bot-grid.is-previewing").forEach((grid) => {
+    grid.classList.remove("is-previewing");
+    grid.querySelectorAll(".bot-cell.is-held").forEach((node) => node.classList.remove("is-held"));
+  });
 }
 
-/** Bottom edge sits 8px above the held icon. A name the card touches is covered whole, not sliced. */
+/** Centered on the held icon. Sits in the gap when it fits; otherwise floats over the icons above, clear of every name. */
 function placePreview(pop, anchor) {
   const icon = anchor.getBoundingClientRect();
-  const cell = anchor.closest(".bot-cell");
-  const cellBox = cell ? cell.getBoundingClientRect() : icon;
   const margin = 12;
   const gap = 8;
   const scrollX = window.scrollX || document.documentElement.scrollLeft || 0;
   const scrollY = window.scrollY || document.documentElement.scrollTop || 0;
+  const grid = document.querySelector(".bot-grid");
+  const gridBox = grid ? grid.getBoundingClientRect() : null;
+  const boundLeft = gridBox ? Math.max(margin, gridBox.left) : margin;
+  const boundRight = gridBox ? Math.min(window.innerWidth - margin, gridBox.right) : window.innerWidth - margin;
   pop.hidden = false;
-  let width = Math.min(260, window.innerWidth - margin * 2);
+  const width = Math.max(1, Math.min(200, boundRight - boundLeft));
+  pop.style.width = width + "px";
+  const height = pop.getBoundingClientRect().height || pop.offsetHeight || 56;
   let left = icon.left + icon.width / 2 - width / 2;
-  left = Math.max(margin, Math.min(left, window.innerWidth - width - margin));
-  const pin = () => {
-    pop.style.left = left + scrollX + "px";
-    pop.style.width = width + "px";
-    const height = pop.getBoundingClientRect().height || pop.offsetHeight;
-    let top = icon.top - height - gap;
-    if (top < margin) {
-      top = cellBox.bottom + gap;
-      const below = hitsNames(top, left, width, height, nameBoxes());
-      if (below.length) top = Math.max(...below.map((box) => box.bottom)) + gap;
-      if (top + height > window.innerHeight - margin) top = Math.max(margin, window.innerHeight - height - margin);
-    }
-    pop.style.top = top + scrollY + "px";
-    return height;
-  };
-  let height = pin();
-  for (let pass = 0; pass < 4; pass++) {
-    const cardTop = icon.top - height - gap;
-    let nextLeft = left;
-    let nextRight = left + width;
-    let grew = false;
-    for (const box of nameBoxes()) {
-      const hit = nextLeft < box.right && nextRight > box.left && cardTop < box.bottom && cardTop + height > box.top;
-      if (!hit) continue;
-      if (box.left >= nextLeft - 0.5 && box.right <= nextRight + 0.5) continue;
-      nextLeft = Math.min(nextLeft, box.left);
-      nextRight = Math.max(nextRight, box.right);
-      grew = true;
-    }
-    if (!grew) break;
-    nextLeft = Math.max(margin, nextLeft);
-    nextRight = Math.min(window.innerWidth - margin, nextRight);
-    left = nextLeft;
-    width = Math.max(1, nextRight - nextLeft);
-    height = pin();
+  left = Math.max(boundLeft, Math.min(left, boundRight - width));
+  const above = nameBoxes().filter((box) => box.bottom <= icon.top + 1 && icon.top - box.bottom < 90 && left < box.right && left + width > box.left);
+  let top = icon.top - height - gap;
+  if (above.length) {
+    const nameBottom = Math.max(...above.map((box) => box.bottom));
+    const nameTop = Math.min(...above.map((box) => box.top));
+    if (height + gap > icon.top - nameBottom) top = nameTop - height - 4;
   }
+  if (top < margin) top = Math.max(margin, icon.top - height - gap);
+  pop.style.left = left + scrollX + "px";
+  pop.style.top = top + scrollY + "px";
 }
 
 let previewClean = null;
@@ -1433,6 +1413,7 @@ function bindPreview(root) {
   let sticky = false;
   const hide = () => {
     pop.hidden = true;
+    clearPreviewing();
     const nameEl = pop.querySelector(".bot-preview-name");
     const descEl = pop.querySelector(".bot-preview-desc");
     if (nameEl) nameEl.textContent = "";
@@ -1453,6 +1434,10 @@ function bindPreview(root) {
       descEl.textContent = desc;
       descEl.hidden = desc.length === 0;
     }
+    clearPreviewing();
+    const grid = cell.closest(".bot-grid");
+    if (grid) grid.classList.add("is-previewing");
+    cell.classList.add("is-held");
     placePreview(pop, cell.querySelector(".glass-icon") || cell);
   };
   root.querySelectorAll(".bot-cell").forEach((cell) => {

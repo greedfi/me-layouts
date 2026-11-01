@@ -2141,6 +2141,7 @@ function NewDot({ dark }: { dark: boolean }): JSX.Element {
 type Preview = {
   name: string;
   desc: string;
+  href: string;
   left: number;
   top: number;
   width: number;
@@ -2149,53 +2150,37 @@ type Preview = {
   cellBottom: number;
 };
 
-function hitsNames(top: number, left: number, width: number, height: number, names: DOMRect[]): DOMRect[] {
-  const bottom = top + height;
-  const right = left + width;
-  return names.filter((box) => left < box.right && right > box.left && top < box.bottom && bottom > box.top);
-}
-
-/** Bottom edge sits 8px above the held icon. A name the card touches is covered whole, not sliced. */
-function placePopover(iconTop: number, iconCenter: number, cellBottom: number, width: number, height: number): { left: number; top: number; width: number } {
+/** Centered on the held icon, clamped to the grid. In the gap when it fits; otherwise over the icons above, clear of names. */
+function placePopover(iconTop: number, iconCenter: number, _cellBottom: number, width: number, height: number): { left: number; top: number; width: number } {
   const margin = 12;
   const gap = 8;
   const viewW = typeof window === "undefined" ? width + margin * 2 : window.innerWidth;
-  const viewH = typeof window === "undefined" ? height + margin * 2 : window.innerHeight;
   const scrollX = typeof window === "undefined" ? 0 : window.scrollX || 0;
   const scrollY = typeof window === "undefined" ? 0 : window.scrollY || 0;
-  let left = iconCenter - width / 2;
-  left = Math.max(margin, Math.min(left, viewW - width - margin));
+  const grid = typeof document === "undefined" ? null : document.querySelector("[aria-label='Bots']");
+  const gridBox = grid ? grid.getBoundingClientRect() : null;
+  const boundLeft = gridBox ? Math.max(margin, gridBox.left) : margin;
+  const boundRight = gridBox ? Math.min(viewW - margin, gridBox.right) : viewW - margin;
+  const cardWidth = Math.max(1, Math.min(width, boundRight - boundLeft));
+  let left = iconCenter - cardWidth / 2;
+  left = Math.max(boundLeft, Math.min(left, boundRight - cardWidth));
   const names =
-    typeof document === "undefined" ? [] : [...document.querySelectorAll(".bot-cell-name, [data-bb-name]")].map((node) => node.getBoundingClientRect());
+    typeof document === "undefined"
+      ? []
+      : [...document.querySelectorAll(".bot-cell-name, [data-bb-name]")]
+          .map((node) => node.getBoundingClientRect())
+          .filter((box) => box.bottom <= iconTop + 1 && iconTop - box.bottom < 90 && left < box.right && left + cardWidth > box.left);
   let top = iconTop - height - gap;
-  if (top < margin) {
-    top = cellBottom + gap;
-    const below = hitsNames(top, left, width, height, names);
-    if (below.length) top = Math.max(...below.map((box) => box.bottom)) + gap;
-    if (top + height > viewH - margin) top = Math.max(margin, viewH - height - margin);
+  if (names.length) {
+    const nameBottom = Math.max(...names.map((box) => box.bottom));
+    const nameTop = Math.min(...names.map((box) => box.top));
+    if (height + gap > iconTop - nameBottom) top = nameTop - height - 4;
   }
-  for (let pass = 0; pass < 4; pass++) {
-    let nextLeft = left;
-    let nextRight = left + width;
-    let grew = false;
-    for (const box of names) {
-      const hit = nextLeft < box.right && nextRight > box.left && top < box.bottom && top + height > box.top;
-      if (!hit) continue;
-      if (box.left >= nextLeft - 0.5 && box.right <= nextRight + 0.5) continue;
-      nextLeft = Math.min(nextLeft, box.left);
-      nextRight = Math.max(nextRight, box.right);
-      grew = true;
-    }
-    if (!grew) break;
-    nextLeft = Math.max(margin, nextLeft);
-    nextRight = Math.min(viewW - margin, nextRight);
-    left = nextLeft;
-    width = Math.max(1, nextRight - nextLeft);
-  }
-  return { left: Math.round(left + scrollX), top: Math.round(top + scrollY), width: Math.round(width) };
+  if (top < margin) top = Math.max(margin, iconTop - height - gap);
+  return { left: Math.round(left + scrollX), top: Math.round(top + scrollY), width: Math.round(cardWidth) };
 }
 
-function BotIcon({ bot, desktop, onPreview }: { bot: Bot; desktop: boolean; onPreview: (next: Preview | null) => void }): JSX.Element {
+function BotIcon({ bot, desktop, onPreview, dimmed }: { bot: Bot; desktop: boolean; onPreview: (next: Preview | null) => void; dimmed?: boolean }): JSX.Element {
   const look = useBillboardLook();
   const ring = useFocusRing();
   const reduced = useMedia("(prefers-reduced-motion: reduce)");
@@ -2219,11 +2204,12 @@ function BotIcon({ bot, desktop, onPreview }: { bot: Bot; desktop: boolean; onPr
     const box = node.getBoundingClientRect();
     const cell = node.closest("a");
     const cellBox = cell ? cell.getBoundingClientRect() : box;
-    const width = Math.min(260, window.innerWidth - 24);
-    const placed = placePopover(box.top, box.left + box.width / 2, cellBox.bottom, width, 88);
+    const width = Math.min(200, window.innerWidth - 24);
+    const placed = placePopover(box.top, box.left + box.width / 2, cellBox.bottom, width, 56);
     onPreview({
       name,
       desc,
+      href,
       width: placed.width,
       iconTop: box.top,
       iconCenter: box.left + box.width / 2,
@@ -2308,6 +2294,9 @@ function BotIcon({ bot, desktop, onPreview }: { bot: Bot; desktop: boolean; onPr
         boxSizing: "border-box",
         textDecoration: "none",
         color: look.ink,
+        opacity: dimmed ? 0.4 : 1,
+        filter: dimmed && !reduced ? "blur(1px)" : "none",
+        transition: reduced ? "none" : "opacity 150ms ease, filter 150ms ease",
         WebkitTouchCallout: "none",
         WebkitUserSelect: "none",
         userSelect: "none",
@@ -2647,7 +2636,7 @@ export default function App(): JSX.Element {
             }}
           >
             {filtered.map((bot, index) => (
-              <BotIcon key={`${bot.href}-${bot.name}-${index}`} bot={bot} desktop={desktop} onPreview={setPreview} />
+              <BotIcon key={`${bot.href}-${bot.name}-${index}`} bot={bot} desktop={desktop} dimmed={!!preview && preview.href !== bot.href} onPreview={setPreview} />
             ))}
           </section>
         ) : null}
@@ -2664,13 +2653,13 @@ export default function App(): JSX.Element {
               onFocus={(): void => {}}
               onBlur={(): void => {}}
               frame={{ borderRadius: 20 }}
-              contentStyle={{ padding: "12px 14px", boxSizing: "border-box" }}
+              contentStyle={{ padding: "8px 12px", boxSizing: "border-box" }}
             >
               {preview.name.length > 0 ? (
-                <p style={{ ...overlayFace, fontWeight: theme.weight.semibold, margin: 0, fontSize: 14, lineHeight: 1.35, whiteSpace: "normal", overflowWrap: "anywhere", textShadow: dark ? SOFT_SHADOW_DARK : SOFT_SHADOW_LIGHT }}>{preview.name}</p>
+                <p style={{ ...overlayFace, fontWeight: theme.weight.semibold, margin: 0, fontSize: 14, lineHeight: 1.2, whiteSpace: "normal", overflowWrap: "anywhere", textShadow: dark ? SOFT_SHADOW_DARK : SOFT_SHADOW_LIGHT }}>{preview.name}</p>
               ) : null}
               {preview.desc.length > 0 ? (
-                <p style={{ ...overlayFace, margin: preview.name.length > 0 ? "4px 0 0" : 0, fontSize: 14, lineHeight: 1.35, whiteSpace: "normal", overflowWrap: "anywhere", textShadow: dark ? SOFT_SHADOW_DARK : SOFT_SHADOW_LIGHT }}>{preview.desc}</p>
+                <p style={{ ...overlayFace, margin: preview.name.length > 0 ? "2px 0 0" : 0, fontSize: 14, lineHeight: 1.2, whiteSpace: "normal", overflowWrap: "anywhere", textShadow: dark ? SOFT_SHADOW_DARK : SOFT_SHADOW_LIGHT }}>{preview.desc}</p>
               ) : null}
             </GlassPane>
           </div>

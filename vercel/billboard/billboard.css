@@ -840,7 +840,18 @@ body {
 }
 
 .bot-preview .glass-content {
-  padding: 12px 14px;
+  padding: 8px 12px;
+}
+
+.bot-grid.is-previewing .bot-cell {
+  opacity: 0.4;
+  filter: blur(1px);
+  transition: opacity 150ms ease, filter 150ms ease;
+}
+
+.bot-grid.is-previewing .bot-cell.is-held {
+  opacity: 1;
+  filter: none;
 }
 
 .bot-preview-copy {
@@ -861,7 +872,7 @@ body {
   color: var(--bb-ink);
   font-family: inherit;
   font-size: 14px;
-  line-height: 1.35;
+  line-height: 1.2;
   font-synthesis: none;
   white-space: normal;
   overflow-wrap: anywhere;
@@ -872,7 +883,7 @@ body {
 }
 
 .bot-preview-desc {
-  margin-top: 4px;
+  margin-top: 2px;
   font-weight: 500;
 }
 
@@ -974,6 +985,11 @@ body {
 
   .glass-glare {
     display: none !important;
+  }
+
+  .bot-grid.is-previewing .bot-cell {
+    transition: none;
+    filter: none;
   }
 }
 
