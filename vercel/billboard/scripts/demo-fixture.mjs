@@ -303,6 +303,167 @@ const CHECKS = `(() => {
   return fails;
 })()`;
 
+const GREED_NAMES = [
+  [".links", "Downloadable .bot link-tree — cleaner than Linktree."],
+  [".cord", "A cord of bots, one install."],
+  [".promo", "Launch films for Grok Bot products."],
+  [".mail", "Inbox setup kit for Grok Bots."],
+  [".botalytics", "Counts for every bot you ship."],
+  ["Fred", "Fred keeps the timeline tidy."],
+  ["tibot", "Threads, posts, and the follow-up."],
+  ["Afterglow", "The after-image of a launch."],
+  ["clawd", "Claws through the unread."],
+  ["Sales Bot", "A short pitch and a clean close."],
+  ["Content Bot", "Drafts, cuts, and the caption."],
+  ["Business Bot", "Operating notes for the shop."],
+];
+
+function greedBots(count) {
+  const now = Date.now();
+  const bots = [];
+  for (let i = 0; i < count; i++) {
+    const pair = GREED_NAMES[i % GREED_NAMES.length];
+    const bot = {
+      name: pair[0],
+      desc: pair[1],
+      src: svgIcon(String(i + 1).padStart(2, "0"), (i * 28) % 360),
+      href: "https://x.ai/bot/greedfi-" + i,
+    };
+    if (i === 1) bot.added = new Date(now - 2 * 86400000).toISOString();
+    if (i === 2) bot.added = new Date(now - 5 * 86400000).toISOString();
+    bots.push(bot);
+  }
+  return bots;
+}
+
+function greedLinks(count) {
+  const links = [];
+  for (let i = 0; i < count; i++) {
+    if (i % 2 === 0) links.push({ label: "X", href: "https://x.com/greedfi", display: "@greedfi" });
+    else links.push({ label: "GitHub", href: "https://github.com/greedfi", display: "greedfi" });
+  }
+  return links;
+}
+
+function fillGreed(source, avatar, botCount) {
+  let next = source;
+  next = replaceStringConst(next, "AVATAR", avatar);
+  next = replaceStringConst(next, "DISPLAY_NAME", "greedfi 🪩");
+  next = replaceStringConst(next, "HANDLE", "greedfi");
+  next = replaceStringConst(next, "BIO", "Trade Journal — Professional X User");
+  next = replaceStringConst(next, "FOOTER", "@grok @bot creator");
+  next = replaceStringConst(next, "STAGE", "color");
+  next = replaceStringConst(next, "PAGE_TITLE", "greedfi");
+  next = replaceStringConst(next, "FEATURED_BOT", ".links");
+  next = replaceArray(next, "bots", greedBots(botCount));
+  next = replaceArray(next, "links", greedLinks(botCount >= 35 ? 30 : 30));
+  return next;
+}
+
+async function loadAvatar() {
+  try {
+    const res = await fetch("https://unavatar.io/x/greedfi");
+    if (!res.ok) throw new Error(String(res.status));
+    const bytes = Buffer.from(await res.arrayBuffer());
+    const type = (res.headers.get("content-type") || "image/jpeg").split(";")[0];
+    if (!type.startsWith("image/")) throw new Error(type);
+    console.log("unavatar", type, bytes.length);
+    return "data:" + type + ";base64," + bytes.toString("base64");
+  } catch (err) {
+    console.log("unavatar fallback", err && err.message ? err.message : err);
+    const png = await readFile(path.join(root, "assets", "links-mark.png"));
+    return "data:image/png;base64," + png.toString("base64");
+  }
+}
+
+async function shootPage(browser, sessionId, file, width, scale, mobile) {
+  const height = width === 390 ? 844 : 900;
+  await browser.send("Emulation.setDeviceMetricsOverride", { width, height, deviceScaleFactor: scale, mobile }, sessionId);
+  await browser.send("Emulation.setEmulatedMedia", { features: [{ name: "prefers-color-scheme", value: "dark" }] }, sessionId);
+  const loaded = browser.once("Page.loadEventFired");
+  await browser.send("Page.navigate", { url: "http://127.0.0.1:" + port + "/?" + file }, sessionId);
+  await loaded;
+  await browser.send(
+    "Runtime.evaluate",
+    {
+      expression: `new Promise((resolve) => {
+        const started = Date.now();
+        const tick = () => {
+          const glasses = [...document.querySelectorAll(".glass")];
+          const ready = glasses.length > 0 && glasses.every((node) => node.dataset.shot);
+          if (ready || Date.now() - started > 8000) resolve(ready);
+          else requestAnimationFrame(tick);
+        };
+        tick();
+      })`,
+      awaitPromise: true,
+    },
+    sessionId,
+  );
+  const metrics = await browser.send(
+    "Runtime.evaluate",
+    { expression: "Math.max(document.documentElement.scrollHeight, document.body.scrollHeight)", returnByValue: true },
+    sessionId,
+  );
+  const fullHeight = Math.ceil(metrics.result.value || height);
+  const shot = await browser.send(
+    "Page.captureScreenshot",
+    { format: "png", captureBeyondViewport: true, clip: { x: 0, y: 0, width, height: fullHeight, scale: 1 } },
+    sessionId,
+  );
+  await writeFile(path.join(artifacts, file), Buffer.from(shot.data, "base64"));
+  console.log("shot", file, fullHeight, "scale", scale);
+}
+
+async function shootPopover(browser, sessionId) {
+  await browser.send("Emulation.setDeviceMetricsOverride", { width: 390, height: 844, deviceScaleFactor: 2, mobile: true }, sessionId);
+  await browser.send("Emulation.setEmulatedMedia", { features: [{ name: "prefers-color-scheme", value: "dark" }] }, sessionId);
+  const loaded = browser.once("Page.loadEventFired");
+  await browser.send("Page.navigate", { url: "http://127.0.0.1:" + port + "/?popover" }, sessionId);
+  await loaded;
+  await browser.send(
+    "Runtime.evaluate",
+    {
+      expression: `new Promise((resolve) => {
+        const started = Date.now();
+        const tick = () => {
+          const cell = document.querySelector(".bot-cell");
+          const glasses = [...document.querySelectorAll(".glass")];
+          const ready = cell && glasses.length > 0 && glasses.every((node) => node.dataset.shot);
+          if (ready || Date.now() - started > 8000) {
+            if (cell) cell.scrollIntoView({ block: "center" });
+            resolve(!!cell);
+          } else requestAnimationFrame(tick);
+        };
+        tick();
+      })`,
+      awaitPromise: true,
+    },
+    sessionId,
+  );
+  const pos = await browser.send(
+    "Runtime.evaluate",
+    {
+      expression: `(() => { const cell = document.querySelector(".bot-cell"); const box = cell.getBoundingClientRect(); return { x: box.x + box.width / 2, y: box.y + box.height / 2 }; })()`,
+      returnByValue: true,
+    },
+    sessionId,
+  );
+  const point = pos.result.value;
+  await browser.send("Input.dispatchMouseEvent", { type: "mousePressed", x: point.x, y: point.y, button: "left", clickCount: 1 }, sessionId);
+  await new Promise((resolve) => setTimeout(resolve, 650));
+  const open = await browser.send(
+    "Runtime.evaluate",
+    { expression: `(() => { const pop = document.querySelector(".bot-preview"); return { hidden: !pop || pop.hidden, text: pop ? (pop.innerText || "") : "" }; })()`, returnByValue: true },
+    sessionId,
+  );
+  console.log("popover", open.result.value);
+  const shot = await browser.send("Page.captureScreenshot", { format: "png" }, sessionId);
+  await writeFile(path.join(artifacts, "greedfi_popover_390.png"), Buffer.from(shot.data, "base64"));
+  await browser.send("Input.dispatchMouseEvent", { type: "mouseReleased", x: point.x, y: point.y, button: "left", clickCount: 1 }, sessionId);
+  console.log("shot greedfi_popover_390.png");
+}
+
 async function main() {
   const source = await readFile(path.join(root, "billboard.js"), "utf8");
   if (!source.includes('const LINKS_SHARE_HREF = "https://x.ai/bot/iAAjk66qgHyqOys2TEC-K"')) {
@@ -442,6 +603,15 @@ async function main() {
     const narrowFails = narrow.result.value || ["narrow checks did not return"];
     if (narrowFails.length) failures.push("320: " + narrowFails.join("; "));
     else console.log("ok 320");
+
+    const avatar = await loadAvatar();
+    await writeFile(path.join(work, "billboard.js"), fillGreed(source, avatar, 35));
+    await shootPage(browser, sessionId, "greedfi_390.png", 390, 3, true);
+    await shootPage(browser, sessionId, "greedfi_1440.png", 1440, 1, false);
+    await writeFile(path.join(work, "billboard.js"), fillGreed(source, avatar, 12));
+    await shootPage(browser, sessionId, "greedfi_search_390.png", 390, 2, true);
+    await writeFile(path.join(work, "billboard.js"), fillGreed(source, avatar, 35));
+    await shootPopover(browser, sessionId);
   } finally {
     chrome.kill("SIGKILL");
     server.close();

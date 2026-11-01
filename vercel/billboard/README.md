@@ -26,7 +26,8 @@ Static port of `layouts/billboard/page.canvas.tsx` for a Vercel deploy. The canv
 | `OG_IMAGE_URL` | `__OG_IMAGE_URL__` | Absolute `https://` URL of **this user's** avatar file from step 6 |
 | `GA_MEASUREMENT_ID` | `__GA_MEASUREMENT_ID__` | Optional later. Leave the placeholder. `.me` does not ask for this at setup. A real `G-…` id loads GA4. Empty or still `__…__` injects nothing |
 | `META_PIXEL_ID` | `__META_PIXEL_ID__` | Optional later. Leave the placeholder. `.me` does not ask for this at setup. A numeric Pixel id loads a minimal PageView pixel. Empty or still `__…__` injects nothing |
-| `LINKS_SHARE_HREF` | `https://x.ai/bot/iAAjk66qgHyqOys2TEC-K` | Href of the corner mark. The pack ships with this published .links Install URL as the default for every user. Fillers may leave it as-is or overwrite `LINKS_SHARE_HREF`. The chip is always rendered. Empty, `#`, or a still-placeholder `__…__` token does not navigate. `assets/links-mark.png` is product chrome (transparent sphere; the eyes are in that image). The chip shows that image alone. Not this user's avatar and not the unfurl image |
+| `LINKS_SHARE_HREF` | `https://x.ai/bot/iAAjk66qgHyqOys2TEC-K` | Href of the corner mark, and the no-JS fallback. The pack ships with this published .links Install URL as the default for every user. Fillers may leave it as-is or overwrite `LINKS_SHARE_HREF`. The chip is always rendered. Empty, `#`, or a still-placeholder `__…__` token does not navigate. With JavaScript, a phone calls `navigator.share` with the page title and URL; a desktop copies the URL and shows a brief Copied toast. `assets/links-mark.png` is product chrome (transparent sphere; the eyes are in that image). The chip shows that image alone. Not this user's avatar and not the unfurl image |
+| `FEATURED_BOT` | `__FEATURED_BOT__` | Optional. Leave the placeholder for no pin. A zero-based index (`0`) or a bot name. When there are 5 or more bots and this resolves, that bot is the full tile above the icon grid and is not repeated in the grid |
 
 4. Replace the whole `bots` array. One object per bot, same keys, 0–N entries.
 5. Replace the whole `links` array the same way.
@@ -42,10 +43,11 @@ Bot object:
   desc: "__BOT0_DESC__",
   src: "__BOT0_ICON__",
   href: "__BOT0_HREF__",
+  added: "__BOT0_ADDED__",
 }
 ```
 
-`src` is a `data:image/...` icon. `href` is a real `https://x.ai/bot/...` URL. The whole tile is that link.
+`src` is a `data:image/...` icon. `href` is a real `https://x.ai/bot/...` URL. The whole tile is that link. `added` is optional. Leave it off, or set an ISO date. A date within the last 7 days paints a small glass dot on that bot's tile. A placeholder `__…__` does not.
 
 Link object:
 

@@ -78,12 +78,16 @@ const ACCENT = "__ACCENT__";
  * token keeps the chip and does not navigate.
  */
 const LINKS_SHARE_HREF = "https://x.ai/bot/iAAjk66qgHyqOys2TEC-K";
+/** Optional pin. A zero-based index or a bot name. The placeholder means no pin. */
+const FEATURED_BOT = "__FEATURED_BOT__";
 
 type Bot = {
   name: string;
   desc: string;
   src: string;
   href: string;
+  /** Optional ISO date. A bot added within seven days wears a glass dot. */
+  added?: string;
 };
 
 type Link = {
@@ -541,6 +545,7 @@ function GlassRoot({
   onPointerUp,
   onPointerCancel,
   onPointerMove,
+  onClick,
   children,
 }: {
   surface: boolean;
@@ -556,6 +561,7 @@ function GlassRoot({
   onPointerUp: (event: PointerEvent<HTMLElement>) => void;
   onPointerCancel: () => void;
   onPointerMove: (event: PointerEvent<HTMLElement>) => void;
+  onClick?: (event: { preventDefault: () => void; stopPropagation: () => void }) => void;
   children: ReactNode;
 }): JSX.Element {
   if (surface) {
@@ -571,6 +577,7 @@ function GlassRoot({
         onPointerUp={onPointerUp}
         onPointerCancel={onPointerCancel}
         onPointerMove={onPointerMove}
+        onClick={onClick}
       >
         {children}
       </div>
@@ -594,6 +601,7 @@ function GlassRoot({
       onPointerUp={onPointerUp}
       onPointerCancel={onPointerCancel}
       onPointerMove={onPointerMove}
+      onClick={onClick}
     >
       {children}
     </a>
@@ -613,6 +621,7 @@ function GlassPane({
   surface,
   haptic,
   held,
+  onClick,
 }: {
   kind: "tile" | "chip";
   href: string;
@@ -631,6 +640,7 @@ function GlassPane({
   haptic?: boolean;
   /** Parent cell is pressed (the name sits outside this surface). */
   held?: boolean;
+  onClick?: (event: { preventDefault: () => void; stopPropagation: () => void }) => void;
 }): JSX.Element {
   const look = useBillboardLook();
   const dark = look.dark;
@@ -746,6 +756,7 @@ function GlassPane({
       }}
       onPointerCancel={(): void => setPressed(false)}
       onPointerMove={trackGlare}
+      onClick={onClick}
       style={{
         position: "relative",
         isolation: "isolate",
@@ -1880,6 +1891,7 @@ function InstallTile({ bot }: { bot: Bot }): JSX.Element {
             <div style={{ width: "100%", height: "100%", transform: "scale(var(--bb-avatar-scale, 1))", transformOrigin: "center", transition: "transform 150ms ease" }}>
               {icon.length > 0 ? <Image src={icon} alt={name.length > 0 ? `${name} icon` : "Bot icon"} width={64} height={64} ratio={1} fit="cover" /> : null}
             </div>
+            {isNewBot(bot) ? <NewDot dark={look.dark} /> : null}
           </div>
           {name.length > 0 ? (
             <p
@@ -1941,7 +1953,33 @@ function InstallTile({ bot }: { bot: Bot }): JSX.Element {
  * Default corner control. Same chip glass as the social row. The face is the
  * links-mark image alone. Always rendered.
  */
-function LinksMark({ desktop }: { desktop: boolean }): JSX.Element {
+function sharePage(event: { preventDefault: () => void; stopPropagation: () => void }): "shared" | "copied" | "link" {
+  const url = typeof location !== "undefined" ? location.href : "";
+  const title = typeof document !== "undefined" ? document.title : "";
+  const coarse = mediaNow("(pointer: coarse)") || (typeof window !== "undefined" && window.innerWidth < 480);
+  const nav = navigator as Navigator & {
+    share?: (data: { title?: string; url?: string }) => Promise<void>;
+    clipboard?: { writeText: (value: string) => Promise<void> };
+  };
+  if (coarse && typeof nav.share === "function") {
+    event.preventDefault();
+    event.stopPropagation();
+    nav.share({ title, url }).catch(() => {});
+    return "shared";
+  }
+  if (nav.clipboard && typeof nav.clipboard.writeText === "function") {
+    event.preventDefault();
+    event.stopPropagation();
+    nav.clipboard.writeText(url).catch(() => {
+      const href = shareHref(LINKS_SHARE_HREF);
+      if (href && typeof window !== "undefined") window.open(href, "_blank", "noopener");
+    });
+    return "copied";
+  }
+  return "link";
+}
+
+function LinksMark({ desktop, onCopied }: { desktop: boolean; onCopied: () => void }): JSX.Element {
   const ring = useFocusRing();
   return (
     <GlassPane
@@ -1949,6 +1987,10 @@ function LinksMark({ desktop }: { desktop: boolean }): JSX.Element {
       href={shareHref(LINKS_SHARE_HREF)}
       name="Links"
       haptic={false}
+      onClick={(event): void => {
+        const result = sharePage(event);
+        if (result === "copied") onCopied();
+      }}
       focused={ring.focused}
       onFocus={ring.onFocus}
       onBlur={ring.onBlur}
@@ -2037,7 +2079,52 @@ const ICON_GRID_MIN = 5;
 /** Dark halo. It disappears on dark silk and lifts the body ink on a bright plate. */
 const NAME_HALO = "0 0 2px rgba(0,0,0,0.55), 0 0 6px rgba(0,0,0,0.45), 0 1px 10px rgba(0,0,0,0.35)";
 
-function BotIcon({ bot, desktop }: { bot: Bot; desktop: boolean }): JSX.Element {
+const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
+
+function featuredIndex(shown: readonly Bot[]): number {
+  const raw = filled(FEATURED_BOT);
+  if (!raw || /^__.+__$/.test(raw)) return -1;
+  if (/^\d+$/.test(raw)) {
+    const bot = bots[Number(raw)];
+    if (!bot) return -1;
+    return shown.indexOf(bot);
+  }
+  const needle = raw.toLowerCase();
+  return shown.findIndex((bot) => filled(bot.name).toLowerCase() === needle || filled(bot.href) === raw);
+}
+
+function isNewBot(bot: Bot): boolean {
+  const raw = filled(bot.added ?? "");
+  if (!raw || /^__.+__$/.test(raw)) return false;
+  const then = Date.parse(raw);
+  if (!Number.isFinite(then)) return false;
+  const age = Date.now() - then;
+  return age >= 0 && age <= WEEK_MS;
+}
+
+function NewDot({ dark }: { dark: boolean }): JSX.Element {
+  return (
+    <span
+      aria-hidden
+      style={{
+        position: "absolute",
+        top: 5,
+        right: 5,
+        width: 10,
+        height: 10,
+        borderRadius: 999,
+        pointerEvents: "none",
+        zIndex: 2,
+        background: dark ? MILK_DARK : MILK_LIGHT,
+        boxShadow: dark ? SHINE_DARK : SHINE_LIGHT,
+      }}
+    />
+  );
+}
+
+type Preview = { desc: string; left: number; top: number; width: number };
+
+function BotIcon({ bot, desktop, onPreview }: { bot: Bot; desktop: boolean; onPreview: (next: Preview | null) => void }): JSX.Element {
   const look = useBillboardLook();
   const ring = useFocusRing();
   const reduced = useMedia("(prefers-reduced-motion: reduce)");
@@ -2047,8 +2134,25 @@ function BotIcon({ bot, desktop }: { bot: Bot; desktop: boolean }): JSX.Element 
   const name = filled(bot.name);
   const icon = filled(bot.src);
   const href = filled(bot.href);
+  const desc = filled(bot.desc);
   const basis = desktop ? "calc((100% - 50px) / 6)" : "calc((100% - 30px) / 4)";
   const lift = hovered && !held && !reduced && fine;
+  const glassRef = useRef<HTMLDivElement | null>(null);
+  const holdTimer = useRef(0);
+  const suppress = useRef(false);
+  const sticky = useRef(false);
+  const origin = useRef({ x: 0, y: 0 });
+  const showPreview = (): void => {
+    const node = glassRef.current;
+    if (!desc || !node || typeof window === "undefined") return;
+    const box = node.getBoundingClientRect();
+    const width = Math.min(260, window.innerWidth - 24);
+    let left = box.left + box.width / 2 - width / 2;
+    left = Math.max(12, Math.min(left, window.innerWidth - width - 12));
+    const top = box.top > 96 ? box.top - 8 : box.bottom + 8;
+    onPreview({ desc, left, top, width });
+  };
+  const clearHold = (): void => window.clearTimeout(holdTimer.current);
   return (
     <a
       href={href.length > 0 ? href : undefined}
@@ -2061,17 +2165,56 @@ function BotIcon({ bot, desktop }: { bot: Bot; desktop: boolean }): JSX.Element 
         setHeld(false);
         ring.onBlur();
       }}
-      onMouseEnter={(): void => setHovered(true)}
+      onMouseEnter={(): void => {
+        setHovered(true);
+        if (!fine) return;
+        clearHold();
+        holdTimer.current = window.setTimeout(showPreview, 450);
+      }}
       onMouseLeave={(): void => {
         setHovered(false);
         setHeld(false);
+        clearHold();
+        if (!sticky.current) onPreview(null);
       }}
-      onPointerDown={(): void => {
+      onPointerDown={(event: PointerEvent<HTMLAnchorElement>): void => {
+        if (event.button !== 0) return;
         setHeld(true);
         tapHaptic();
+        sticky.current = false;
+        origin.current = { x: event.clientX, y: event.clientY };
+        clearHold();
+        holdTimer.current = window.setTimeout(() => {
+          suppress.current = true;
+          showPreview();
+        }, 450);
       }}
-      onPointerUp={(): void => setHeld(false)}
-      onPointerCancel={(): void => setHeld(false)}
+      onPointerMove={(event: PointerEvent<HTMLAnchorElement>): void => {
+        if (Math.hypot(event.clientX - origin.current.x, event.clientY - origin.current.y) > 12) clearHold();
+      }}
+      onPointerUp={(): void => {
+        clearHold();
+        setHeld(false);
+        if (!sticky.current) onPreview(null);
+      }}
+      onPointerCancel={(): void => {
+        clearHold();
+        setHeld(false);
+        if (!sticky.current) onPreview(null);
+      }}
+      onClick={(event): void => {
+        if (!suppress.current) return;
+        event.preventDefault();
+        event.stopPropagation();
+        suppress.current = false;
+      }}
+      onContextMenu={(event): void => {
+        event.preventDefault();
+        event.stopPropagation();
+        clearHold();
+        sticky.current = true;
+        showPreview();
+      }}
       style={{
         flex: `0 0 ${basis}`,
         width: basis,
@@ -2089,6 +2232,7 @@ function BotIcon({ bot, desktop }: { bot: Bot; desktop: boolean }): JSX.Element 
         outlineOffset: 3,
       }}
     >
+      <div ref={glassRef} style={{ width: "100%", minWidth: 0 }}>
       <GlassPane
         kind="tile"
         href=""
@@ -2122,8 +2266,10 @@ function BotIcon({ bot, desktop }: { bot: Bot; desktop: boolean }): JSX.Element 
           <div style={{ width: "100%", height: "100%", transform: "scale(var(--bb-avatar-scale, 1))", transformOrigin: "center", transition: reduced ? "none" : "transform 150ms ease" }}>
             {icon.length > 0 ? <Image src={icon} alt="" width="100%" ratio={1} fit="cover" /> : null}
           </div>
+          {isNewBot(bot) ? <NewDot dark={look.dark} /> : null}
         </div>
       </GlassPane>
+      </div>
       {name.length > 0 ? (
         <p
           style={{
@@ -2170,11 +2316,28 @@ export default function App(): JSX.Element {
   const shownLinks = links.filter((link) => filled(link.label).length > 0 || filled(link.display).length > 0 || filled(link.href).length > 0);
   const showHero = hero.text.length > 0 || hero.clusters.length > 0;
   const dark = look.dark;
+  const [query, setQuery] = useState("");
+  const [preview, setPreview] = useState<Preview | null>(null);
+  const [copied, setCopied] = useState(false);
+  const copiedTimer = useRef(0);
+  const pinAt = shownBots.length >= ICON_GRID_MIN ? featuredIndex(shownBots) : -1;
+  const featured = pinAt >= 0 ? shownBots[pinAt] : null;
+  const gridBots = featured ? shownBots.filter((_, index) => index !== pinAt) : shownBots;
+  const needle = query.trim().toLowerCase();
+  const filtered = gridBots.filter((bot) => needle.length === 0 || filled(bot.name).toLowerCase().includes(needle));
+  const countText = `${shownBots.length} ${shownBots.length === 1 ? "bot" : "bots"} · ${shownLinks.length} ${shownLinks.length === 1 ? "link" : "links"}`;
   return (
     <div id={LAYOUT} style={pageStyle(look, desktop)}>
       <Stage />
       <div style={bandStyle(desktop)}>
-        <LinksMark desktop={desktop} />
+        <LinksMark
+          desktop={desktop}
+          onCopied={(): void => {
+            setCopied(true);
+            window.clearTimeout(copiedTimer.current);
+            copiedTimer.current = window.setTimeout(() => setCopied(false), 1400);
+          }}
+        />
         <header
           style={{
             display: "flex",
@@ -2267,6 +2430,23 @@ export default function App(): JSX.Element {
             {bio}
           </p>
           ) : null}
+          {shownBots.length >= ICON_GRID_MIN ? (
+            <p
+              style={{
+                fontFamily: theme.font.family,
+                color: look.ink,
+                fontSize: 12,
+                lineHeight: 1.4,
+                fontWeight: theme.weight.medium,
+                letterSpacing: "0",
+                textAlign: "center",
+                margin: "8px 0 0",
+                width: "100%",
+              }}
+            >
+              {countText}
+            </p>
+          ) : null}
         </header>
 
         {shownBots.length > 0 && shownBots.length < ICON_GRID_MIN ? (
@@ -2277,7 +2457,60 @@ export default function App(): JSX.Element {
           </section>
         ) : null}
 
-        {shownBots.length >= ICON_GRID_MIN ? (
+        {featured ? (
+          <section style={{ display: "flex", flexDirection: "column", gap: 14, width: "100%", maxWidth: "100%", minWidth: 0 }}>
+            <InstallTile bot={featured} />
+          </section>
+        ) : null}
+
+        {shownBots.length >= 12 ? (
+          <GlassPane
+            kind="tile"
+            href=""
+            surface
+            haptic={false}
+            focused={false}
+            onFocus={(): void => {}}
+            onBlur={(): void => {}}
+            frame={{ width: "100%", borderRadius: 999 }}
+            contentStyle={{
+              display: "flex",
+              alignItems: "center",
+              width: "100%",
+              height: 40,
+              padding: "0 14px",
+              boxSizing: "border-box",
+            }}
+          >
+            <input
+              type="search"
+              value={query}
+              aria-label="Search bots"
+              placeholder="Search"
+              onChange={(event: { currentTarget: { value: string } }): void => setQuery(event.currentTarget.value)}
+              style={{
+                width: "100%",
+                minWidth: 0,
+                border: 0,
+                margin: 0,
+                padding: 0,
+                background: "transparent",
+                color: look.glassInk,
+                fontFamily: theme.font.family,
+                fontSize: 14,
+                fontWeight: 500,
+                letterSpacing: "0",
+                outline: "none",
+              }}
+            />
+          </GlassPane>
+        ) : null}
+
+        {shownBots.length >= 12 && needle.length > 0 && filtered.length === 0 ? (
+          <p style={{ margin: 0, textAlign: "center", color: look.ink, fontFamily: theme.font.family, fontSize: 12, fontWeight: 500, lineHeight: 1.4 }}>No matches</p>
+        ) : null}
+
+        {shownBots.length >= ICON_GRID_MIN && filtered.length > 0 ? (
           <section
             aria-label="Bots"
             style={{
@@ -2291,10 +2524,45 @@ export default function App(): JSX.Element {
               minWidth: 0,
             }}
           >
-            {shownBots.map((bot, index) => (
-              <BotIcon key={`${bot.href}-${index}`} bot={bot} desktop={desktop} />
+            {filtered.map((bot, index) => (
+              <BotIcon key={`${bot.href}-${bot.name}-${index}`} bot={bot} desktop={desktop} onPreview={setPreview} />
             ))}
           </section>
+        ) : null}
+
+        {preview ? (
+          <div style={{ position: "fixed", left: preview.left, top: preview.top, width: preview.width, zIndex: 6, pointerEvents: "none" }}>
+            <GlassPane
+              kind="tile"
+              href=""
+              surface
+              haptic={false}
+              focused={false}
+              onFocus={(): void => {}}
+              onBlur={(): void => {}}
+              contentStyle={{ padding: "12px 14px", boxSizing: "border-box" }}
+            >
+              <p style={{ margin: 0, color: look.glassInk, fontFamily: theme.font.family, fontSize: 14, fontWeight: 500, lineHeight: 1.35, textShadow: dark ? SOFT_SHADOW_DARK : SOFT_SHADOW_LIGHT }}>{preview.desc}</p>
+            </GlassPane>
+          </div>
+        ) : null}
+
+        {copied ? (
+          <div style={{ position: "fixed", left: "50%", bottom: "max(24px, env(safe-area-inset-bottom, 0px))", transform: "translateX(-50%)", zIndex: 7, pointerEvents: "none" }}>
+            <GlassPane
+              kind="chip"
+              href=""
+              surface
+              haptic={false}
+              focused={false}
+              onFocus={(): void => {}}
+              onBlur={(): void => {}}
+              frame={{ width: "auto", height: "auto", minWidth: 0, minHeight: 0, borderRadius: 999 }}
+              contentStyle={{ padding: "10px 16px", width: "auto", height: "auto" }}
+            >
+              <span style={{ color: look.glassInk, fontFamily: theme.font.family, fontSize: 14, fontWeight: 500, whiteSpace: "nowrap" }}>Copied</span>
+            </GlassPane>
+          </div>
         ) : null}
 
         {shownLinks.length > 0 ? (
