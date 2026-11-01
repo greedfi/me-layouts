@@ -832,9 +832,14 @@ function paintGlass(anchor) {
   if (prev) prev.remove();
   layers.append(buildFilter(anchor.dataset.filterId, w, h, images.map, dial));
   const displace = anchor.querySelector(".glass-displace");
-  const ref = "url(#" + anchor.dataset.filterId + ")";
-  displace.style.backdropFilter = ref;
-  displace.style.webkitBackdropFilter = ref;
+  if (anchor.classList.contains("bot-preview")) {
+    displace.style.backdropFilter = "none";
+    displace.style.webkitBackdropFilter = "none";
+  } else {
+    const ref = "url(#" + anchor.dataset.filterId + ")";
+    displace.style.backdropFilter = ref;
+    displace.style.webkitBackdropFilter = ref;
+  }
 }
 
 function watchGlass(anchor) {
@@ -1299,12 +1304,9 @@ function quiet(event) {
 function showCopied() {
   let toast = document.querySelector(".copied-toast");
   if (!toast) {
-    const label = el("span", "copied-label");
-    label.textContent = "Copied";
-    toast = glassPane("tile", "", "", label, { linked: false, haptic: false, className: "glass-toast" });
-    toast.classList.add("copied-toast");
+    toast = el("div", "copied-toast");
+    toast.textContent = "Copied";
     document.body.append(toast);
-    watchGlass(toast);
   }
   toast.hidden = false;
   window.clearTimeout(toast._bbTimer);
@@ -1352,7 +1354,8 @@ function bindShare(mark) {
 function ensurePreview() {
   let pop = document.querySelector(".bot-preview");
   if (pop) return pop;
-  const copy = el("p", "bot-preview-copy");
+  const copy = el("div", "bot-preview-copy");
+  copy.append(el("p", "bot-preview-name"), el("p", "bot-preview-desc"));
   pop = glassPane("tile", "", "", copy, { linked: false, haptic: false, className: "bot-preview" });
   pop.hidden = true;
   document.body.append(pop);
@@ -1360,20 +1363,44 @@ function ensurePreview() {
   return pop;
 }
 
+function nameBoxes() {
+  return [...document.querySelectorAll(".bot-cell-name")].map((node) => node.getBoundingClientRect());
+}
+
+function clearPreviewing() {
+  document.querySelectorAll(".bot-grid.is-previewing").forEach((grid) => {
+    grid.classList.remove("is-previewing");
+    grid.querySelectorAll(".bot-cell.is-held").forEach((node) => node.classList.remove("is-held"));
+  });
+}
+
+/** Centered on the held icon. Sits in the gap when it fits; otherwise floats over the icons above, clear of every name. */
 function placePreview(pop, anchor) {
-  const box = anchor.getBoundingClientRect();
+  const icon = anchor.getBoundingClientRect();
   const margin = 12;
-  const width = Math.min(260, window.innerWidth - margin * 2);
-  pop.style.width = width + "px";
+  const gap = 8;
+  const scrollX = window.scrollX || document.documentElement.scrollLeft || 0;
+  const scrollY = window.scrollY || document.documentElement.scrollTop || 0;
+  const grid = document.querySelector(".bot-grid");
+  const gridBox = grid ? grid.getBoundingClientRect() : null;
+  const boundLeft = gridBox ? Math.max(margin, gridBox.left) : margin;
+  const boundRight = gridBox ? Math.min(window.innerWidth - margin, gridBox.right) : window.innerWidth - margin;
   pop.hidden = false;
-  const height = pop.getBoundingClientRect().height || pop.offsetHeight;
-  let left = box.left + box.width / 2 - width / 2;
-  left = Math.max(margin, Math.min(left, window.innerWidth - width - margin));
-  let top = box.top - height - 8;
-  if (top < margin) top = box.bottom + 8;
-  if (top + height > window.innerHeight - margin) top = Math.max(margin, window.innerHeight - height - margin);
-  pop.style.left = left + "px";
-  pop.style.top = top + "px";
+  const width = Math.max(1, Math.min(200, boundRight - boundLeft));
+  pop.style.width = width + "px";
+  const height = pop.getBoundingClientRect().height || pop.offsetHeight || 56;
+  let left = icon.left + icon.width / 2 - width / 2;
+  left = Math.max(boundLeft, Math.min(left, boundRight - width));
+  const above = nameBoxes().filter((box) => box.bottom <= icon.top + 1 && icon.top - box.bottom < 90 && left < box.right && left + width > box.left);
+  let top = icon.top - height - gap;
+  if (above.length) {
+    const nameBottom = Math.max(...above.map((box) => box.bottom));
+    const nameTop = Math.min(...above.map((box) => box.top));
+    if (height + gap > icon.top - nameBottom) top = nameTop - height - 4;
+  }
+  if (top < margin) top = Math.max(margin, icon.top - height - gap);
+  pop.style.left = left + scrollX + "px";
+  pop.style.top = top + scrollY + "px";
 }
 
 let previewClean = null;
@@ -1386,13 +1413,31 @@ function bindPreview(root) {
   let sticky = false;
   const hide = () => {
     pop.hidden = true;
-    if (copy) copy.textContent = "";
+    clearPreviewing();
+    const nameEl = pop.querySelector(".bot-preview-name");
+    const descEl = pop.querySelector(".bot-preview-desc");
+    if (nameEl) nameEl.textContent = "";
+    if (descEl) descEl.textContent = "";
     sticky = false;
   };
   const show = (cell) => {
     const desc = cell.dataset.desc || "";
-    if (!desc || !copy) return;
-    copy.textContent = desc;
+    const name = cell.dataset.name || "";
+    if ((!desc && !name) || !copy) return;
+    const nameEl = pop.querySelector(".bot-preview-name");
+    const descEl = pop.querySelector(".bot-preview-desc");
+    if (nameEl) {
+      nameEl.textContent = name;
+      nameEl.hidden = name.length === 0;
+    }
+    if (descEl) {
+      descEl.textContent = desc;
+      descEl.hidden = desc.length === 0;
+    }
+    clearPreviewing();
+    const grid = cell.closest(".bot-grid");
+    if (grid) grid.classList.add("is-previewing");
+    cell.classList.add("is-held");
     placePreview(pop, cell.querySelector(".glass-icon") || cell);
   };
   root.querySelectorAll(".bot-cell").forEach((cell) => {
