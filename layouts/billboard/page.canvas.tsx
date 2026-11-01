@@ -2075,10 +2075,7 @@ function BotIcon({ bot, desktop }: { bot: Bot; desktop: boolean }): JSX.Element 
         width: basis,
         maxWidth: basis,
         minWidth: 0,
-        display: "flex",
-        flexDirection: "column",
-        alignItems: "center",
-        gap: 6,
+        display: "block",
         boxSizing: "border-box",
         textDecoration: "none",
         color: look.glassInk,
@@ -2099,56 +2096,53 @@ function BotIcon({ bot, desktop }: { bot: Bot; desktop: boolean }): JSX.Element 
         frame={{
           display: "block",
           width: "100%",
-          aspectRatio: "1",
           maxWidth: "100%",
           transform: reduced ? "none" : held ? "translateY(0) scale(0.97)" : lift ? "translateY(-3px) scale(1)" : "translateY(0) scale(1)",
           boxShadow: lift ? (look.dark ? ELEVATED_HOVER_DARK : ELEVATED_HOVER_LIGHT) : look.dark ? ELEVATED_DARK : ELEVATED_LIGHT,
           ...({ "--bb-avatar-scale": lift ? "1.04" : "1" } as CSSProperties),
         }}
         contentStyle={{
-          position: "absolute",
-          inset: 0,
+          position: "relative",
           width: "100%",
-          height: "100%",
+          height: "auto",
           display: "flex",
+          flexDirection: "column",
           alignItems: "center",
-          justifyContent: "center",
-          padding: 0,
+          justifyContent: "flex-start",
+          gap: 6,
+          padding: "10px 6px 8px",
+          boxSizing: "border-box",
         }}
       >
-        <div style={{ ...iconWell(64, 16, look), width: "78%", height: "78%", flex: "0 0 auto" }}>
+        <div style={{ ...iconWell(64, 16, look), width: "100%", height: "auto", aspectRatio: "1", flex: "0 0 auto" }}>
           <div style={{ width: "100%", height: "100%", transform: "scale(var(--bb-avatar-scale, 1))", transformOrigin: "center", transition: reduced ? "none" : "transform 150ms ease" }}>
             {icon.length > 0 ? <Image src={icon} alt="" width="100%" ratio={1} fit="cover" /> : null}
           </div>
         </div>
+        {name.length > 0 ? (
+          <p
+            style={{
+              fontFamily: look.theme.font.family,
+              color: look.glassInk,
+              fontSize: 12,
+              lineHeight: 1.2,
+              fontWeight: look.theme.weight.medium,
+              letterSpacing: "0",
+              textAlign: "center",
+              textShadow: "var(--bb-ink-shadow)",
+              margin: 0,
+              width: "100%",
+              maxWidth: "100%",
+              minWidth: 0,
+              whiteSpace: "nowrap",
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+            }}
+          >
+            {name}
+          </p>
+        ) : null}
       </GlassPane>
-      {name.length > 0 ? (
-        <p
-          style={{
-            fontFamily: look.theme.font.family,
-            color: look.ink,
-            fontSize: 12,
-            lineHeight: 1.25,
-            fontWeight: look.theme.weight.medium,
-            letterSpacing: "0",
-            textAlign: "center",
-            textShadow: look.dark ? SOFT_SHADOW_DARK : SOFT_SHADOW_LIGHT,
-            paddingBottom: 2,
-            margin: 0,
-            width: "100%",
-            maxWidth: "100%",
-            minWidth: 0,
-            overflow: "hidden",
-            display: "-webkit-box",
-            WebkitLineClamp: 2,
-            WebkitBoxOrient: "vertical",
-            overflowWrap: "anywhere",
-            wordBreak: "break-word",
-          } as CSSProperties}
-        >
-          {name}
-        </p>
-      ) : null}
     </a>
   );
 }

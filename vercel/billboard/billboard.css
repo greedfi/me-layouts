@@ -615,10 +615,7 @@ body {
   width: calc((100% - 30px) / 4);
   max-width: calc((100% - 30px) / 4);
   min-width: 0;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 6px;
+  display: block;
   box-sizing: border-box;
   text-decoration: none;
   color: var(--bb-glass-ink);
@@ -636,44 +633,53 @@ body {
 .glass.glass-icon {
   display: block;
   width: 100%;
-  aspect-ratio: 1;
 }
 
 .glass-icon .glass-content {
-  position: absolute;
-  inset: 0;
+  position: relative;
   width: 100%;
-  height: 100%;
+  height: auto;
   display: flex;
+  flex-direction: column;
   align-items: center;
-  justify-content: center;
-  padding: 0;
+  justify-content: flex-start;
+  gap: 6px;
+  padding: 10px 6px 8px;
+  box-sizing: border-box;
+}
+
+.glass-icon .icon-face {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  min-width: 0;
 }
 
 .glass-icon .icon-well {
-  width: 78%;
-  height: 78%;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 1;
   flex: 0 0 auto;
   border-radius: 16px;
 }
 
 .bot-cell-name {
   font-size: 12px;
-  line-height: 1.25;
+  line-height: 1.2;
   font-weight: 500;
   letter-spacing: 0;
   text-align: center;
   width: 100%;
   max-width: 100%;
   min-width: 0;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
+  margin: 0;
+  white-space: nowrap;
   overflow: hidden;
-  /* Same body ink and shadow as the handle and bio. Glass ink washes out on the bright plates. */
-  color: var(--bb-ink);
-  text-shadow: var(--bb-soft-shadow);
-  padding-bottom: 2px;
+  text-overflow: ellipsis;
+  color: var(--bb-glass-ink);
+  text-shadow: var(--bb-ink-shadow);
 }
 
 .bot-cell:active .glass-icon {

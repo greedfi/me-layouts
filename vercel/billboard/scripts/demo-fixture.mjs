@@ -290,10 +290,12 @@ const CHECKS = `(() => {
   }
   const names = document.querySelector(".bot-cell-name");
   if (names) {
-    const ink = getComputedStyle(document.querySelector(".handle") || document.body).color;
-    const nameInk = getComputedStyle(names).color;
-    if (nameInk !== ink) fail("grid name ink " + nameInk + " != body ink " + ink);
-    const shadow = getComputedStyle(names).textShadow;
+    if (!names.closest(".glass-icon")) fail("grid name sits outside the glass");
+    const style = getComputedStyle(names);
+    if (style.whiteSpace !== "nowrap") fail("grid name is not one line");
+    if (style.textOverflow !== "ellipsis") fail("grid name does not ellipsize");
+    if (style.overflow !== "hidden" && style.overflowX !== "hidden") fail("grid name can overflow");
+    const shadow = style.textShadow;
     if (!shadow || shadow === "none") fail("grid name has no text shadow");
   }
   return fails;

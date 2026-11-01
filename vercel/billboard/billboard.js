@@ -935,6 +935,7 @@ function installIconCell(bot) {
     cell.setAttribute("aria-label", name);
     cell.title = name;
   }
+  const face = el("div", "icon-face");
   const well = el("div", "icon-well");
   if (icon.length > 0) {
     const img = el("img");
@@ -944,12 +945,13 @@ function installIconCell(bot) {
     img.height = 64;
     well.append(img);
   }
-  cell.append(glassPane("tile", "", "", well, { linked: false, haptic: false, icon: true }));
+  face.append(well);
   if (name.length > 0) {
     const title = el("p", "glass-copy bot-cell-name");
     title.textContent = name;
-    cell.append(title);
+    face.append(title);
   }
+  cell.append(glassPane("tile", "", "", face, { linked: false, haptic: false, icon: true }));
   return cell;
 }
 
